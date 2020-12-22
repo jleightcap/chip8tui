@@ -133,8 +133,8 @@ impl Cpu {
         };
 
         match cycle_count {
-            PC::I    => self.pc += 1*OP_LEN,
-            PC::C    => self.pc += 2*OP_LEN,
+            PC::I    => self.pc = self.pc.wrapping_add(1*OP_LEN),
+            PC::C    => self.pc = self.pc.wrapping_add(2*OP_LEN),
             PC::J(a) => self.pc =  a,
         }
     }
@@ -145,7 +145,6 @@ impl Cpu {
     }
 
     fn op_00ee(&mut self) -> PC {
-        // TODO
         PC::I
     }
 
@@ -176,7 +175,9 @@ impl Cpu {
 
     // v[x] += nn
     fn op_7xnn(&mut self, x: usize, nn: u8) -> PC {
-        self.v[x] += nn; PC::I
+        let res = self.v[x].wrapping_add(nn);
+        self.v[x] = res as u8;
+        PC::I
     }
 
     // v[x] = v[y]
@@ -201,14 +202,14 @@ impl Cpu {
 
     // v[x] += v[y]
     fn op_8xy4(&mut self, x: usize, y: usize) -> PC {
-        let res = (self.v[x] as u16) + (self.v[y] as u16);
+        let res = self.v[x].wrapping_add(self.v[y]);
         self.v[x] = res as u8;
         PC::I
     }
 
     // v[x] -= v[y]
     fn op_8xy5(&mut self, x: usize, y: usize) -> PC {
-        let res = (self.v[x] as u16) - (self.v[y] as u16);
+        let res = self.v[x].wrapping_sub(self.v[y]);
         self.v[x] = res as u8;
         return PC::I
     }
