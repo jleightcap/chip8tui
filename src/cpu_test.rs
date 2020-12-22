@@ -13,6 +13,11 @@ fn test_init() {
     let c: Cpu = Cpu::new();
     assert_eq!(c.pc, 0x200);
     assert_eq!(c.sp, 0x0);
+
+    // font initialized
+    for ii in 0..FONT.len() {
+        assert_eq!(c.ram[ii], FONT[ii]);
+    }
 }
 
 
@@ -21,6 +26,19 @@ fn test_init() {
 // OPCODE TEST
 //
 // ========================================================================= //
+
+#[test]
+fn test_0x00e0() {
+    let mut c = Cpu::new();
+    c.vram[3][4] = 1;
+    c.vram[31][63] = 2;
+    exec_test_prog(&vec![0x00e0], &mut c);
+    for jj in 0..V_HEIGHT {
+        for ii in 0..V_WIDTH {
+            assert_eq!(c.vram[jj][ii], 0);
+        }
+    }
+}
 
 #[test]
 fn test_0x00ee() {

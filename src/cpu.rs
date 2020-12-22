@@ -12,27 +12,72 @@ impl PC {
     }
 }
 
+// built-in sprites for drawing hexadecimal digits '0' -> 'F'
+// live in the interpreter memory (0x000 -> 0x1ff)
+// http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#font
+pub const FONT: [u8; 80] = [
+    /* '0' */
+    0xf0, 0x90, 0x90, 0x90, 0xf0,
+    /* '1' */
+    0x20, 0x60, 0x20, 0x20, 0x70,
+    /* '2' */
+    0xf0, 0x10, 0xf0, 0x80, 0xf0,
+    /* '3' */
+    0xf0, 0x10, 0xf0, 0x10, 0xf0,
+    /* '4' */
+    0x90, 0x90, 0xf0, 0x10, 0x10,
+    /* '5' */
+    0xf0, 0x80, 0xf0, 0x10, 0xf0,
+    /* '6' */
+    0xf0, 0x80, 0xf0, 0x90, 0xf0,
+    /* '7' */
+    0xf0, 0x10, 0x20, 0x40, 0x40,
+    /* '8' */
+    0xf0, 0x90, 0xf0, 0x90, 0xf0,
+    /* '9' */
+    0xf0, 0x90, 0xf0, 0x10, 0xf0,
+    /* 'A' */
+    0xf0, 0x90, 0xf0, 0x90, 0x90,
+    /* 'B' */
+    0xe0, 0x90, 0xe0, 0x90, 0xe0,
+    /* 'C' */
+    0xf0, 0x80, 0x80, 0x80, 0xf0,
+    /* 'D' */
+    0xe0, 0x90, 0x90, 0x90, 0xe0,
+    /* 'E' */
+    0x0f, 0x80, 0xf0, 0x80, 0xf0,
+    /* 'F' */
+    0xf0, 0x80, 0xf0, 0x80, 0x80,
+];
+
 const STACK_SIZE: usize = 16;
 const RAM_SIZE:   usize = 4096;
 const REG_COUNT:  usize = 16;
+const V_WIDTH:    usize = 64;
+const V_HEIGHT:   usize = 32;
 pub struct Cpu {
     /* memory */
-    ram:    [u8; RAM_SIZE],     // RAM tape
+    ram:    [u8; RAM_SIZE],             // RAM tape
+    vram:   [[u8; V_WIDTH]; V_HEIGHT],  // video RAM
 
     /* stack */
-    sp:     usize,              // stack pointer
-    s:      [usize; STACK_SIZE],// stack memory
+    sp:     usize,                      // stack pointer
+    s:      [usize; STACK_SIZE],        // stack memory
 
     /* registers */
-    v:      [u8; REG_COUNT],    // general registers
-    i:      usize,              // index register
-    pc:     usize,              // program counter
+    v:      [u8; REG_COUNT],            // general registers
+    i:      usize,                      // index register
+    pc:     usize,                      // program counter
 }
 impl Cpu {
     pub fn new() -> Self {
-        //let mut ram = [0; RAM_SIZE];
+        let mut ram = [0; RAM_SIZE];
+        for ii in 0..FONT.len() {
+            ram[ii] = FONT[ii]; // memcpy?
+        }
         Cpu {
-            ram:    [0; RAM_SIZE],
+            ram:    ram,
+            vram:   [[0; V_WIDTH]; V_HEIGHT],
             sp:     0x0,
             s:      [0; STACK_SIZE],
             i:      0x000,
@@ -151,8 +196,14 @@ impl Cpu {
         }
     }
 
+    // clear
     fn op_00e0(&mut self) -> PC {
-        // TODO: clear
+        // memset?
+        for jj in 0..V_HEIGHT {
+            for ii in 0..V_WIDTH {
+                self.vram[jj][ii] = 0;
+            }
+        }
         PC::I
     }
 
