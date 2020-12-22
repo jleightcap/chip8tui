@@ -55,6 +55,7 @@ const RAM_SIZE:   usize = 4096;
 const REG_COUNT:  usize = 16;
 const V_WIDTH:    usize = 64;
 const V_HEIGHT:   usize = 32;
+const PC_BASE:    usize = 0x200;
 pub struct Cpu {
     /* memory */
     ram:    [u8; RAM_SIZE],             // RAM tape
@@ -81,8 +82,19 @@ impl Cpu {
             sp:     0x0,
             s:      [0; STACK_SIZE],
             i:      0x000,
-            pc:     0x200,
+            pc:     PC_BASE,
             v:      [0; REG_COUNT],
+        }
+    }
+
+    fn prog_init(&mut self, prog: &[u8]) {
+        for ii in 0..prog.len() {
+            if ii < RAM_SIZE + PC_BASE {
+                self.ram[PC_BASE + ii] = prog[ii];
+            }
+            else {
+                panic!("loaded program exceeds RAM!");
+            }
         }
     }
 
@@ -92,15 +104,20 @@ impl Cpu {
         self.ram[self.pc + 1] = ((op & 0x00ff) >> 0) as u8;
     }
 
-    fn next_opcode(&self) -> u16 {
+    fn fetch(&self) -> u16 {
         (self.ram[self.pc] as u16) << 8 | (self.ram[self.pc + 1] as u16)
+    }
+
+    // one machine cycle
+    fn mcycle(&mut self) {
+        self.icycle();
     }
 
     // one instruction cycle (variable machine cycle)
     // super handy specification:
     // http://johnearnest.github.io/Octo/docs/chip8ref.pdf
     fn icycle(&mut self) {
-        let op = self.next_opcode();
+        let op = self.fetch();
         // split 2-byte opcode into 4 nibbles
         let nibs = (
             (op & 0xf000) >> 12 as u8,
