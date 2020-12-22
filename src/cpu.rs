@@ -32,6 +32,12 @@ impl Cpu {
         }
     }
 
+    // insert an opcode at the current PC
+    fn opcode_init(&mut self, op: u16) {
+        self.ram[self.pc]     = ((op & 0xff00) >> 8) as u8;
+        self.ram[self.pc + 1] = ((op & 0x00ff) >> 0) as u8;
+    }
+
     fn next_opcode(&self) -> u16 {
         (self.ram[self.pc] as u16) << 8 | (self.ram[self.pc + 1] as u16)
     }
@@ -163,47 +169,65 @@ impl Cpu {
         PC::I
     }
 
+    // v[x] = nn
     fn op_6xnn(&mut self, x: usize, nn: u8) -> PC {
-        self.v[x] = nn;
-        PC::I
+        self.v[x] = nn; PC::I
     }
 
+    // v[x] += nn
     fn op_7xnn(&mut self, x: usize, nn: u8) -> PC {
-        PC::I
+        self.v[x] += nn; PC::I
     }
 
+    // v[x] = v[y]
     fn op_8xy0(&mut self, x: usize, y: usize) -> PC {
-        PC::I
+        self.v[x] = self.v[y]; PC::I
     }
 
+    // v[x] |= v[y]
     fn op_8xy1(&mut self, x: usize, y: usize) -> PC {
-        PC::I
+        self.v[x] |= self.v[y]; PC::I
     }
 
+    // v[x] &= v[y]
     fn op_8xy2(&mut self, x: usize, y: usize) -> PC {
-        PC::I
+        self.v[x] &= self.v[y]; PC::I
     }
 
+    // v[x] ^= v[y]
     fn op_8xy3(&mut self, x: usize, y: usize) -> PC {
-        PC::I
+        self.v[x] ^= self.v[y]; PC::I
     }
 
+    // v[x] += v[y]
     fn op_8xy4(&mut self, x: usize, y: usize) -> PC {
+        let res = (self.v[x] as u16) + (self.v[y] as u16);
+        self.v[x] = res as u8;
         PC::I
     }
 
+    // v[x] -= v[y]
     fn op_8xy5(&mut self, x: usize, y: usize) -> PC {
-        PC::I
+        let res = (self.v[x] as u16) - (self.v[y] as u16);
+        self.v[x] = res as u8;
+        return PC::I
     }
 
+    // v[x] >>= v[y]
     fn op_8xy6(&mut self, x: usize, y: usize) -> PC {
-        PC::I
+        let res = (self.v[x] as u16) >> (self.v[y] as u16);
+        self.v[x] = res as u8;
+        return PC::I
     }
 
+    // v[x] = (v[y] - v[x])
     fn op_8xy7(&mut self, x: usize, y: usize) -> PC {
-        PC::I
+        let res = self.v[y].wrapping_sub(self.v[x]);
+        self.v[x] = res as u8;
+        return PC::I
     }
 
+    // v[x] <<= v[y]
     fn op_8xye(&mut self, x: usize, y: usize) -> PC {
         PC::I
     }
