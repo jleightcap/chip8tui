@@ -184,7 +184,7 @@ impl Cpu {
     // http://johnearnest.github.io/Octo/docs/chip8ref.pdf
     fn icycle(&mut self) {
         let op = self.fetch();
-        println!("|| {:#02x}", op);
+        println!("|| {:#06x}", op);
         // split 2-byte opcode into 4 nibbles
         let nibs = (
             (op & 0xf000) >> 12 as u8,
@@ -282,7 +282,7 @@ impl Cpu {
 
     // clear
     fn op_00e0(&mut self) -> PC {
-        // memset?
+        println!("clear");
         for jj in 0..V_HEIGHT {
             for ii in 0..V_WIDTH {
                 self.vram[jj][ii] = 0;
@@ -293,16 +293,20 @@ impl Cpu {
 
     // return
     fn op_00ee(&mut self) -> PC {
+        println!("return");
         self.pc -= 1;
         PC::JA(self.s[self.sp])
     }
 
     // pc = nnn
     fn op_1nnn(&mut self, nnn: usize) -> PC {
+        println!("jmp {:#05x}", nnn);
         PC::JA(nnn)
     }
 
+    // call nnn
     fn op_2nnn(&mut self, nnn: usize) -> PC {
+        println!("call {:#05x}", nnn);
         self.s[self.sp] = self.pc + OP_LEN;
         self.sp += 1;
         PC::JA(nnn)
@@ -310,6 +314,7 @@ impl Cpu {
 
     // if v[x] != nn then
     fn op_3xnn(&mut self, x: usize, nn: u8) -> PC {
+        println!("if v[{}] != {} then", x, nn);
         PC::cond(self.v[x] != nn)
     }
 
@@ -321,17 +326,20 @@ impl Cpu {
 
     // if v[x] != v[y] then
     fn op_5xy0(&mut self, x: usize, y: usize) -> PC {
+        println!("if v[{}] != v[{}] then", x, y);
         PC::cond(self.v[x] != self.v[y])
     }
 
     // v[x] = nn
     fn op_6xnn(&mut self, x: usize, nn: u8) -> PC {
+        println!("v[{}] = {}", x, nn);
         self.v[x] = nn;
         PC::I
     }
 
     // v[x] += nn
     fn op_7xnn(&mut self, x: usize, nn: u8) -> PC {
+        println!("v[{}] += {}", x, nn);
         let res = self.v[x].wrapping_add(nn);
         self.v[x] = res as u8;
         PC::I
@@ -339,30 +347,35 @@ impl Cpu {
 
     // v[x] = v[y]
     fn op_8xy0(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] = v[{}]", x, y);
         self.v[x] = self.v[y];
         PC::I
     }
 
     // v[x] |= v[y]
     fn op_8xy1(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] |= v[{}]", x, y);
         self.v[x] |= self.v[y];
         PC::I
     }
 
     // v[x] &= v[y]
     fn op_8xy2(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] &= v[{}]", x, y);
         self.v[x] &= self.v[y];
         PC::I
     }
 
     // v[x] ^= v[y]
     fn op_8xy3(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] ^= v[{}]", x, y);
         self.v[x] ^= self.v[y];
         PC::I
     }
 
     // v[x] += v[y]
     fn op_8xy4(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] ++ v[{}]", x, y);
         let res = self.v[x].wrapping_add(self.v[y]);
         self.v[x] = res as u8;
         PC::I
@@ -370,6 +383,7 @@ impl Cpu {
 
     // v[x] -= v[y]
     fn op_8xy5(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] -= v[{}]", x, y);
         let res = self.v[x].wrapping_sub(self.v[y]);
         self.v[x] = res as u8;
         return PC::I
@@ -377,6 +391,7 @@ impl Cpu {
 
     // v[x] >>= v[y]
     fn op_8xy6(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] >>= v[{}]", x, y);
         let res = (self.v[x] as u16) >> (self.v[y] as u16);
         self.v[x] = res as u8; // does this underflow?
         return PC::I
@@ -384,6 +399,7 @@ impl Cpu {
 
     // v[x] = (v[y] - v[x])
     fn op_8xy7(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] =- v[{}]", x, y);
         let res = self.v[y].wrapping_sub(self.v[x]);
         self.v[x] = res as u8;
         return PC::I
@@ -391,6 +407,7 @@ impl Cpu {
 
     // v[x] <<= v[y]
     fn op_8xye(&mut self, x: usize, y: usize) -> PC {
+        println!("v[{}] <<= v[{}]", x, y);
         let res = (self.v[x] as u16) << (self.v[y] as u16);
         self.v[x] = res as u8; // does this overflow?
         PC::I
@@ -398,81 +415,115 @@ impl Cpu {
 
     // if v[x] == v[y] then
     fn op_9xy0(&mut self, x: usize, y: usize) -> PC {
+        println!("if v[{}] == v[{}] then", x, y);
         PC::cond(self.v[x] == self.v[y])
     }
 
     // i = nnn
     fn op_annn(&mut self, nnn: usize) -> PC {
+        println!("i = {:#05x}", nnn);
         self.i = nnn;
         PC::I
     }
 
     // pc = nnn + v[0]
     fn op_bnnn(&mut self, nnn: usize) -> PC {
+        println!("pc = {:#05x} + v[0]", nnn);
         PC::JA(nnn + self.v[0] as usize)
     }
 
     // v[x] = rand(255) & nn
     fn op_cxnn(&mut self, x: usize, nn: u8) -> PC {
-        // TODO: random
+        panic!("TODO: random");
         PC::I
     }
 
     // sprite v[x] v[y] n
     fn op_dxyn(&mut self, x: usize, y: usize, n: usize) -> PC {
-        // TODO: sprite
+        self.v[0xf] = 0;
+        for byte in 0..n {
+            let ii = (self.v[y] as usize + byte) % V_HEIGHT;
+            for bit in 0..8 {
+                let jj = (self.v[x] as usize + byte) % V_WIDTH;
+                let c = (self.ram[self.i + byte] >> (7 - bit)) & 0x1;
+                self.v[0xf] |= c & self.vram[jj][ii]; // flag set if bit cleared
+                self.vram[jj][ii] ^= c;
+            }
+        }
         PC::I
     }
 
     // if v[x] != key then
     fn op_ex9e(&mut self, x: usize) -> PC {
-        // TODO: key
+        panic!("TODO: key");
         PC::I
     }
 
     // if v[s] == key then
     fn op_exa1(&mut self, x: usize) -> PC {
-        // TODO: key
+        panic!("TODO: key");
         PC::I
     }
 
     // v[x] = delay
     fn op_fx07(&mut self, x: usize) -> PC {
+        panic!("TODO: delay");
         PC::I
     }
 
+    // v[x] = key
     fn op_fx0a(&mut self, x: usize) -> PC {
+        panic!("TODO: keypresses");
         PC::I
     }
 
+    // delay = v[x]
     fn op_fx15(&mut self, x: usize) -> PC {
+        panic!("TODO: delay");
         PC::I
     }
 
+    // sound timer = v[x]
     fn op_fx18(&mut self, x: usize) -> PC {
+        panic!("TODO: sound timer");
         PC::I
     }
 
     // i += v[x]
     fn op_fx1e(&mut self, x: usize) -> PC {
+        println!("i += v[{}]", x);
         let res = self.v[x].wrapping_add(self.i as u8);
         self.i = res as usize;
         PC::I
     }
 
+    // i = sprite(v[x])
     fn op_fx29(&mut self, x: usize) -> PC {
+        panic!("TODO: sprites");
         PC::I
     }
 
+    // bcd(v[x])
     fn op_fx33(&mut self, x: usize) -> PC {
+        panic!("TODO: BCD");
         PC::I
     }
 
+    // store v
     fn op_fx55(&mut self, x: usize) -> PC {
+        println!("store v");
+        for ii in 0..REG_COUNT {
+            self.ram[self.i + ii] = self.v[ii];
+        }
         PC::I
     }
 
+    // load v
     fn op_fx65(&mut self, x: usize) -> PC {
+        println!("load v");
+        for ii in 0..REG_COUNT {
+            self.v[ii] = self.ram[self.i + ii];
+        }
         PC::I
     }
 }
