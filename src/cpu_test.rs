@@ -11,6 +11,7 @@ fn exec_test_prog(p: &Vec<u16>, c: &mut Cpu) {
 #[test]
 fn test_init() {
     let c: Cpu = Cpu::new();
+    // register states
     assert_eq!(c.pc, 0x200);
     assert_eq!(c.sp, 0x0);
 
@@ -18,6 +19,16 @@ fn test_init() {
     for ii in 0..FONT.len() {
         assert_eq!(c.ram[ii], FONT[ii]);
     }
+}
+
+#[test]
+fn test_new_prog() {
+    let mut c: Cpu = Cpu::new();
+    c.prog_init(&ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef]));
+    assert_eq!(c.ram[0x200], 0xde);
+    assert_eq!(c.ram[0x201], 0xad);
+    assert_eq!(c.ram[0x202], 0xbe);
+    assert_eq!(c.ram[0x203], 0xef);
 }
 
 
@@ -109,8 +120,7 @@ fn test_0x6xnn() {
 fn test_0x7xnn() {
     // 0x7xnn => vx += nn
     // v[0] += 1
-    let mut c = Cpu::new();
-    exec_test_prog(&vec![0x7001], &mut c);
+    let mut c = Cpu::new(); exec_test_prog(&vec![0x7001], &mut c);
     assert_eq!(c.pc, 0x202);
     assert_eq!(c.v[0], 1);
 }

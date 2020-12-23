@@ -1,74 +1,140 @@
+use crate::STACK_SIZE;
+use crate::RAM_SIZE;
+use crate::REG_COUNT;
+use crate::PC_BASE;
+use crate::V_WIDTH;
+use crate::V_HEIGHT;
+
+use crate::rom::ROM;
+
 const OP_LEN: usize = 2; // number of words in an opcode
 enum PC {
     I,           // pc += 1*OP_LEN (increment)
-    C,           // pc += 2*OP_LEN (condition, skip jump instrution)
-    RJ(usize),   // pc += arg (relative jump)
-    AJ(usize),   // pc  = arg (absolute jump)
+    C,           // pc += 2*OP_LEN (condition, skip instrution)
+    JR(usize),   // pc += arg (relative jump)
+    JA(usize),   // pc  = arg (absolute jump)
 }
 impl PC {
     fn cond(q: bool) -> PC {
-        if q { PC::I }
-        else { PC::C }
+        if q { PC::I } // condition met, increment
+        else { PC::C } // condition umnet, skip
     }
 }
 
 // built-in sprites for drawing hexadecimal digits '0' -> 'F'
-// live in the interpreter memory (0x000 -> 0x1ff)
+// stored in the interpreter memory (0x000 -> 0x1ff)
 // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#font
 pub const FONT: [u8; 80] = [
-    /* '0' */
-    0xf0, 0x90, 0x90, 0x90, 0xf0,
-    /* '1' */
-    0x20, 0x60, 0x20, 0x20, 0x70,
-    /* '2' */
-    0xf0, 0x10, 0xf0, 0x80, 0xf0,
-    /* '3' */
-    0xf0, 0x10, 0xf0, 0x10, 0xf0,
-    /* '4' */
-    0x90, 0x90, 0xf0, 0x10, 0x10,
-    /* '5' */
-    0xf0, 0x80, 0xf0, 0x10, 0xf0,
-    /* '6' */
-    0xf0, 0x80, 0xf0, 0x90, 0xf0,
-    /* '7' */
-    0xf0, 0x10, 0x20, 0x40, 0x40,
-    /* '8' */
-    0xf0, 0x90, 0xf0, 0x90, 0xf0,
-    /* '9' */
-    0xf0, 0x90, 0xf0, 0x10, 0xf0,
-    /* 'A' */
-    0xf0, 0x90, 0xf0, 0x90, 0x90,
-    /* 'B' */
-    0xe0, 0x90, 0xe0, 0x90, 0xe0,
-    /* 'C' */
-    0xf0, 0x80, 0x80, 0x80, 0xf0,
-    /* 'D' */
-    0xe0, 0x90, 0x90, 0x90, 0xe0,
-    /* 'E' */
-    0x0f, 0x80, 0xf0, 0x80, 0xf0,
-    /* 'F' */
-    0xf0, 0x80, 0xf0, 0x80, 0x80,
+    0xf0, /* ####    */
+    0x90, /* #  #    */
+    0x90, /* #  #    */
+    0x90, /* #  #    */
+    0xf0, /* ####    */
+
+    0x20, /*   #     */
+    0x60, /*  ##     */
+    0x20, /*   #     */
+    0x20, /*   #     */
+    0x70, /*  ###    */
+
+    0xf0, /* ####    */
+    0x10, /*    #    */
+    0xf0, /* ####    */
+    0x80, /* #       */
+    0xf0, /* ####    */
+
+    0xf0, /* ####    */
+    0x10, /*    #    */
+    0xf0, /* ####    */
+    0x10, /*    #    */
+    0xf0, /* ####    */
+
+    0x90, /* #  #    */
+    0x90, /* #  #    */
+    0xf0, /* ####    */
+    0x10, /*    #    */
+    0x10, /*    #    */
+
+    0xf0, /* ####    */
+    0x80, /* #       */
+    0xf0, /* ####    */
+    0x10, /*    #    */
+    0xf0, /* ####    */
+
+    0xf0, /* ####    */
+    0x80, /* #       */
+    0xf0, /* ####    */
+    0x90, /* #  #    */
+    0xf0, /* ####    */
+
+    0xf0, /* ####    */
+    0x10, /*    #    */
+    0x20, /*   #     */
+    0x40, /*  #      */
+    0x40, /*  #      */
+
+    0xf0, /* ####    */
+    0x90, /* #  #    */
+    0xf0, /* ####    */
+    0x90, /* #  #    */
+    0xf0, /* ####    */
+
+    0xf0, /* ####    */
+    0x90, /* #  #    */
+    0xf0, /* ####    */
+    0x10, /*    #    */
+    0xf0, /* ####    */
+
+    0xf0, /* ####    */
+    0x90, /* #  #    */
+    0xf0, /* ####    */
+    0x90, /* #  #    */
+    0x90, /* #  #    */
+
+    0xe0, /* ###     */
+    0x90, /* #  #    */
+    0xe0, /* ###     */
+    0x90, /* #  #    */
+    0xe0, /* ###     */
+
+    0xf0, /* ####    */
+    0x80, /* #       */
+    0x80, /* #       */
+    0x80, /* #       */
+    0xf0, /* ####    */
+
+    0xe0, /* ###     */
+    0x90, /* #  #    */
+    0x90, /* #  #    */
+    0x90, /* #  #    */
+    0xe0, /* ###     */
+
+    0x0f, /* ####    */
+    0x80, /* #       */
+    0xf0, /* ####    */
+    0x80, /* #       */
+    0xf0, /* ####    */
+
+    0xf0, /* ####    */
+    0x80, /* #       */
+    0xf0, /* ####    */
+    0x80, /* #       */
+    0x80, /* #       */
 ];
 
-const STACK_SIZE: usize = 16;
-const RAM_SIZE:   usize = 4096;
-const REG_COUNT:  usize = 16;
-const V_WIDTH:    usize = 64;
-const V_HEIGHT:   usize = 32;
-const PC_BASE:    usize = 0x200;
 pub struct Cpu {
     /* memory */
-    ram:    [u8; RAM_SIZE],             // RAM tape
-    vram:   [[u8; V_WIDTH]; V_HEIGHT],  // video RAM
+    ram:        [u8; RAM_SIZE],             // RAM tape
+    pub vram:   [[u8; V_WIDTH]; V_HEIGHT],  // video RAM
 
     /* stack */
-    sp:     usize,                      // stack pointer
-    s:      [usize; STACK_SIZE],        // stack memory
+    sp:         usize,                      // stack pointer
+    s:          [usize; STACK_SIZE],        // stack memory
 
     /* registers */
-    v:      [u8; REG_COUNT],            // general registers
-    i:      usize,                      // index register
-    pc:     usize,                      // program counter
+    v:          [u8; REG_COUNT],            // general registers
+    i:          usize,                      // index register
+    pc:         usize,                      // program counter
 }
 impl Cpu {
     pub fn new() -> Self {
@@ -87,10 +153,10 @@ impl Cpu {
         }
     }
 
-    fn prog_init(&mut self, prog: &[u8]) {
-        for ii in 0..prog.len() {
+    pub fn prog_init(&mut self, r: &ROM) {
+        for ii in 0..r.rom.len() {
             if ii < RAM_SIZE + PC_BASE {
-                self.ram[PC_BASE + ii] = prog[ii];
+                self.ram[PC_BASE + ii] = r.rom[ii];
             }
             else {
                 panic!("loaded program exceeds RAM!");
@@ -109,7 +175,7 @@ impl Cpu {
     }
 
     // one machine cycle
-    fn mcycle(&mut self) {
+    pub fn mcycle(&mut self) {
         self.icycle();
     }
 
@@ -118,6 +184,7 @@ impl Cpu {
     // http://johnearnest.github.io/Octo/docs/chip8ref.pdf
     fn icycle(&mut self) {
         let op = self.fetch();
+        println!("|| {:#02x}", op);
         // split 2-byte opcode into 4 nibbles
         let nibs = (
             (op & 0xf000) >> 12 as u8,
@@ -201,15 +268,15 @@ impl Cpu {
             (0xf, _,   0x6, 0x5) =>     /* load vx */
                 self.op_fx55(x),
             (_,   _,   _,   _  ) => {
-                panic!("unexpected opcode!");
+                panic!(format!("unexpected opcode {:#02x}!", op))
             },
         };
 
         match cycle_count {
             PC::I     => self.pc  = self.pc.wrapping_add(1*OP_LEN),
             PC::C     => self.pc  = self.pc.wrapping_add(2*OP_LEN),
-            PC::RJ(a) => self.pc += self.pc.wrapping_add(a),
-            PC::AJ(a) => self.pc  = a,
+            PC::JR(a) => self.pc += self.pc.wrapping_add(a),
+            PC::JA(a) => self.pc  = a,
         }
     }
 
@@ -227,18 +294,18 @@ impl Cpu {
     // return
     fn op_00ee(&mut self) -> PC {
         self.pc -= 1;
-        PC::AJ(self.s[self.sp])
+        PC::JA(self.s[self.sp])
     }
 
     // pc = nnn
     fn op_1nnn(&mut self, nnn: usize) -> PC {
-        PC::AJ(nnn)
+        PC::JA(nnn)
     }
 
     fn op_2nnn(&mut self, nnn: usize) -> PC {
         self.s[self.sp] = self.pc + OP_LEN;
         self.sp += 1;
-        PC::AJ(nnn)
+        PC::JA(nnn)
     }
 
     // if v[x] != nn then
@@ -248,6 +315,7 @@ impl Cpu {
 
     // if v[x] == nn then
     fn op_4xnn(&mut self, x: usize, nn: u8) -> PC {
+        println!("if v[{}] == {} then", x, nn);
         PC::cond(self.v[x] == nn)
     }
 
@@ -341,7 +409,7 @@ impl Cpu {
 
     // pc = nnn + v[0]
     fn op_bnnn(&mut self, nnn: usize) -> PC {
-        PC::AJ(nnn + self.v[0] as usize)
+        PC::JA(nnn + self.v[0] as usize)
     }
 
     // v[x] = rand(255) & nn
