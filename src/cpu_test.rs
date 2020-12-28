@@ -9,32 +9,41 @@ fn exec_test_prog(p: &Vec<u16>, c: &mut Cpu) {
 }
 
 #[test]
-fn test_init() {
-    let c: Cpu = Cpu::new();
+fn test_new_init() {
+    let c: Cpu = Cpu::new(None).unwrap();
     // register states
-    assert_eq!(c.pc, 0x200);
     assert_eq!(c.sp, 0x0);
-
-    // font initialized
-    for ii in 0..FONT.len() {
-        assert_eq!(c.ram[ii], FONT[ii]);
-    }
+    assert_eq!(c.pc, 0x200);
 }
 
 #[test]
 fn test_new_prog() {
-    let mut c: Cpu = Cpu::new();
-    c.prog_init(&ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef])).unwrap();
+    let c: Cpu = Cpu::new(
+        Some(ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef]))
+    ).unwrap();
+    assert_eq!(c.sp, 0x0);
     assert_eq!(c.ram[0x200], 0xde);
     assert_eq!(c.ram[0x201], 0xad);
     assert_eq!(c.ram[0x202], 0xbe);
     assert_eq!(c.ram[0x203], 0xef);
 }
 
+#[test]
+fn test_cpu_reset() {
+    let mut c = Cpu::new(None).unwrap();
+    c.ram[0x200] = 0x42;
+    c.pc = 0xdead;
+    c.i = 0xbeef;
+    c.reset();
+    assert_eq!(c.ram[0x200], 0x00);
+    assert_eq!(c.pc, 0x200);
+    assert_eq!(c.i, 0x00);
+}
+
 /* Opcodes {{{ */
 #[test]
 fn test_0x00e0() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     c.vram[3][4] = 1;
     c.vram[31][63] = 2;
     exec_test_prog(&vec![0x00e0], &mut c);
@@ -47,7 +56,7 @@ fn test_0x00e0() {
 
 #[test]
 fn test_0x00ee() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     c.s[0] = 0x200;
     exec_test_prog(&vec![0x00ee], &mut c);
     assert_eq!(c.sp, 0x0); // return address poped from stack
@@ -56,7 +65,7 @@ fn test_0x00ee() {
 
 #[test]
 fn test_0x2nnn() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x2242], &mut c);
     assert_eq!(c.sp, 0x1); // return address on stack
     assert_eq!(c.s[c.sp - 1], 0x202); // return address after call
@@ -65,37 +74,37 @@ fn test_0x2nnn() {
 
 #[test]
 fn test_0x1nnn() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x1242], &mut c);
     assert_eq!(c.pc, 0x242); // pc = nnn
 }
 
 #[test]
 fn test_0x3xnn() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6022, 0x3021], &mut c);
     assert_eq!(c.pc, 0x204); // v[x] != nn, pc + 1*OP_LEN
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6021, 0x3021], &mut c);
     assert_eq!(c.pc, 0x206); // v[x] == nn, pc + 2*OP_LEN
 }
 
 #[test]
 fn test_0x4xnn() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6022, 0x4022], &mut c);
     assert_eq!(c.pc, 0x204); // v[x] == nn, pc + 1*OP_LEN
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6022, 0x4021], &mut c);
     assert_eq!(c.pc, 0x206); // v[x] != nn, pc + 2*OP_LEN
 }
 
 #[test]
 fn test_0x5xy0() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6022, 0x6123, 0x5010], &mut c);
     assert_eq!(c.pc, 0x206); // v[x] != v[y], pc + 1*OP_LEN
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6022, 0x6122, 0x5010], &mut c);
     assert_eq!(c.pc, 0x208); // v[x] == v[y], pc + 2*OP_LEN
 }
@@ -104,7 +113,7 @@ fn test_0x5xy0() {
 fn test_0x6xnn() {
     // 0x6xnn => vx := nn
     // v[0] = 0x42
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6042], &mut c);
     assert_eq!(c.pc, 0x202);
     assert_eq!(c.v[0], 0x42);
@@ -114,14 +123,15 @@ fn test_0x6xnn() {
 fn test_0x7xnn() {
     // 0x7xnn => vx += nn
     // v[0] += 1
-    let mut c = Cpu::new(); exec_test_prog(&vec![0x7001], &mut c);
+    let mut c = Cpu::new(None).unwrap();
+    exec_test_prog(&vec![0x7001], &mut c);
     assert_eq!(c.pc, 0x202);
     assert_eq!(c.v[0], 1);
 }
 
 #[test]
 fn test_0x8xn0() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6042, 0x8100], &mut c);
     assert_eq!(c.pc, 0x204);
     assert_eq!(c.v[0], 0x42);
@@ -130,7 +140,7 @@ fn test_0x8xn0() {
 
 #[test]
 fn test_0x8xy1() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6042, 0x61ff, 0x8011], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0xff);
@@ -139,7 +149,7 @@ fn test_0x8xy1() {
 
 #[test]
 fn test_0x8xy2() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6042, 0x61ff, 0x8012], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0xff);
@@ -148,7 +158,7 @@ fn test_0x8xy2() {
 
 #[test]
 fn test_0x8xy3() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6042, 0x61ff, 0x8013], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0xff);
@@ -157,7 +167,7 @@ fn test_0x8xy3() {
 
 #[test]
 fn test_0x8xy4() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6021, 0x6121, 0x8014], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0x21);
@@ -166,7 +176,7 @@ fn test_0x8xy4() {
 
 #[test]
 fn test_0x8xy5() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6063, 0x6121, 0x8015], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0x21);
@@ -175,7 +185,7 @@ fn test_0x8xy5() {
 
 #[test]
 fn test_0x8xy6() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6084, 0x6101, 0x8016], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0x01);
@@ -184,7 +194,7 @@ fn test_0x8xy6() {
 
 #[test]
 fn test_0x8xy7() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6020, 0x6162, 0x8017], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0x62);
@@ -193,7 +203,7 @@ fn test_0x8xy7() {
 
 #[test]
 fn test_0x8xye() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6021, 0x6101, 0x801e], &mut c);
     assert_eq!(c.pc, 0x206);
     assert_eq!(c.v[1], 0x01);
@@ -202,17 +212,17 @@ fn test_0x8xye() {
 
 #[test]
 fn test_0x9xy0() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6021, 0x6121, 0x9010], &mut c);
     assert_eq!(c.pc, 0x206); // v[x] == v[y], pc + 1*OP_LEN
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6021, 0x6122, 0x9010], &mut c);
     assert_eq!(c.pc, 0x208); // v[x] != v[y], pc + 2*OP_LEN
 }
 
 #[test]
 fn test_0xannn() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0xa042], &mut c);
     assert_eq!(c.pc, 0x202);
     assert_eq!(c.i, 0x042); // i = nnn
@@ -220,14 +230,14 @@ fn test_0xannn() {
 
 #[test]
 fn test_0xbnnn() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6021, 0xb221], &mut c);
     assert_eq!(c.pc, 0x242); // pc = v[0] + nnn
 }
 
 #[test]
 fn test_0xfx1e() {
-    let mut c = Cpu::new();
+    let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6042, 0xf01e], &mut c);
     assert_eq!(c.pc, 0x204);
     assert_eq!(c.i, 0x0042); // i += v[x]

@@ -140,14 +140,15 @@ pub struct Cpu {
     v:          [u8; REG_COUNT],            // general registers
     i:          usize,                      // index register
     pc:         usize,                      // program counter
+    prog:       Option<ROM>,                // store program (restore from reset)
 }
 impl Cpu {
-    pub fn new() -> Self {
-        let mut ram = [0; RAM_SIZE];
-        for ii in 0..FONT.len() {
-            ram[ii] = FONT[ii]; // memcpy?
-        }
-        Cpu {
+    pub fn new(prog: Option<ROM>) -> Result<Self, Error> {
+        let ram = match prog {
+            None        => [0; RAM_SIZE],
+            Some(ref r) => Cpu::ram_init(&r)?,
+        };
+        Ok(Cpu {
             ram:    ram,
             vram:   [[0; V_WIDTH]; V_HEIGHT],
             sp:     0x0,
@@ -155,26 +156,36 @@ impl Cpu {
             i:      0x000,
             pc:     PC_BASE,
             v:      [0; REG_COUNT],
-        }
+            prog:   prog,
+        })
     }
 
-    pub fn prog_init(&mut self, r: &ROM) -> Result<(), Error> {
+    fn ram_init(r: &ROM) -> Result<[u8; RAM_SIZE], Error> {
+        let mut ram = [0; RAM_SIZE];
+        for ii in 0..FONT.len() {
+            ram[ii] = FONT[ii]; // XXX: is this a memcpy?
+        }
         for ii in 0..r.rom.len() {
             if ii < RAM_SIZE + PC_BASE {
-                self.ram[PC_BASE + ii] = r.rom[ii];
+                ram[PC_BASE + ii] = r.rom[ii];
             }
             else {
                 return Err(Error::new(ErrorKind::InvalidData, "Program exceeds RAM!"));
             }
         }
-        Ok(())
+        Ok(ram)
     }
 
-    // update CPU state based on Option<Key>
+    // update CPU state based on key pressed key (or lack thereof)
     pub fn keyhandle(&mut self, kp: Option<Key>) {
         match kp {
             None    => { },
-            Some(k) => { println!("{:?}", k); },
+            Some(k) => {
+                match k {
+                    Key::Ctrl('r') => { self.reset(); },
+                    _ => { },
+                }
+            },
         }
     }
 
@@ -183,6 +194,11 @@ impl Cpu {
     fn opcode_init(&mut self, op: u16) {
         self.ram[self.pc]     = ((op & 0xff00) >> 8) as u8;
         self.ram[self.pc + 1] = ((op & 0x00ff) >> 0) as u8;
+    }
+
+    fn reset(&mut self) -> Result<(), Error> {
+        *self = Cpu::new(self.prog.clone())?;
+        Ok(())
     }
 
     fn fetch(&self) -> u16 {
