@@ -1,22 +1,20 @@
-use std::io::{Error, ErrorKind};
+use std::io::{Error, ErrorKind, Read};
 
 use termion::event::Key;
 use termion::input::TermRead;
-use termion::raw::IntoRawMode;
-use termion::async_stdin;
+use termion::AsyncReader;
 
 pub struct Keypad {
-    fuck: u8,
+    astdin: AsyncReader,
 }
 
 impl Keypad {
-    pub fn new() -> Self {
-        Keypad { fuck: 2 }
+    pub fn new(stdin: AsyncReader) -> Self {
+        Keypad { astdin: stdin }
     }
 
-    pub fn keytest(&self) -> Result<(), Error> {
-        let stdin = async_stdin();
-        for c in stdin.keys() {
+    pub fn keytest(&mut self) -> Result<(), Error> {
+        for c in self.astdin.by_ref().keys() {
             let key = c.unwrap();
             println!("{:?}", key);
             match key {

@@ -1,5 +1,6 @@
 use std::env;
 use std::io;
+use termion::async_stdin; // asynchronous stdin thread for non-blocking keypresses
 
 mod screen; use screen::Screen;
 mod keypad; use keypad::Keypad;
@@ -15,11 +16,10 @@ fn main() -> Result<(), io::Error> {
     c.prog_init(&r);
 
     let mut screen = Screen::new()?;
-    let k = Keypad::new();
-    for _ in 0..100 {
+    let mut k = Keypad::new(async_stdin());
+    loop {
         k.keytest()?;
         c.mcycle();
         screen.render(&c.vram);
     }
-    Ok(())
 }
