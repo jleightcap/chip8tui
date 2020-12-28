@@ -46,11 +46,6 @@ impl Screen {
         // with the compiler
         let chunks = self.chunks.clone();
         self.term.draw(|f| {
-            // check terminal is big enough to render at least the screen
-            //assert!(f.size().width  >= V_WIDTH  as u16 + 2);
-            //assert!(f.size().height >= V_HEIGHT as u16 + 2);
-            let chunks = chunks.split(f.size());
-
             let canvas =
                 Canvas::default()
                 .block(Block::default().title("CHIP8").borders(Borders::ALL))
@@ -60,7 +55,7 @@ impl Screen {
 
                     let mut pts: Vec<(f64, f64)> = Vec::new();
                     for ii in 0..pixels.len() {
-                        for jj in 0..pixels.len() {
+                        for jj in 0..pixels[ii].len() {
                             if pixels[ii][jj] == 1 { pts.push((ii as f64, jj as f64)) };
                         }
                     }
@@ -71,7 +66,7 @@ impl Screen {
                     });
                 });
 
-
+            let chunks = chunks.split(f.size());
             f.render_widget(canvas, chunks[0]);
         }).unwrap();
     }
