@@ -1,8 +1,8 @@
 use std::io::Read;
 use std::fs::File;
 
-use crate::RAM_SIZE;
-use crate::PC_BASE;
+use crate::cpu::RAM_SIZE;
+use crate::cpu::PC_BASE;
 
 // maximum available program memory
 const ROM_SIZE: usize = RAM_SIZE - PC_BASE; 

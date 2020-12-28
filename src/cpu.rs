@@ -1,9 +1,5 @@
-use crate::STACK_SIZE;
-use crate::RAM_SIZE;
-use crate::REG_COUNT;
-use crate::PC_BASE;
-use crate::V_WIDTH;
-use crate::V_HEIGHT;
+use crate::screen::V_WIDTH;
+use crate::screen::V_HEIGHT;
 
 use crate::rom::ROM;
 
@@ -24,6 +20,7 @@ impl PC {
 // built-in sprites for drawing hexadecimal digits '0' -> 'F'
 // stored in the interpreter memory (0x000 -> 0x1ff)
 // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#font
+/* Font {{{ */
 pub const FONT: [u8; 80] = [
     0xf0, /* ####    */
     0x90, /* #  #    */
@@ -122,6 +119,12 @@ pub const FONT: [u8; 80] = [
     0x80, /* #       */
 ];
 
+/* }}} */
+
+pub const STACK_SIZE: usize = 16;
+pub const RAM_SIZE:   usize = 4096;
+pub const REG_COUNT:  usize = 16;
+pub const PC_BASE:    usize = 0x200;
 pub struct Cpu {
     /* memory */
     ram:        [u8; RAM_SIZE],             // RAM tape
@@ -184,7 +187,7 @@ impl Cpu {
     // http://johnearnest.github.io/Octo/docs/chip8ref.pdf
     fn icycle(&mut self) {
         let op = self.fetch();
-        println!("|| {:#06x}", op);
+        //println!("fetch [{:#08x}] {:#06x}", self.pc, op);
         // split 2-byte opcode into 4 nibbles
         let nibs = (
             (op & 0xf000) >> 12 as u8,
@@ -273,10 +276,10 @@ impl Cpu {
         };
 
         match cycle_count {
-            PC::I     => self.pc  = self.pc.wrapping_add(1*OP_LEN),
-            PC::C     => self.pc  = self.pc.wrapping_add(2*OP_LEN),
-            PC::JR(a) => self.pc += self.pc.wrapping_add(a),
-            PC::JA(a) => self.pc  = a,
+            PC::I     => self.pc = self.pc.wrapping_add(1*OP_LEN),
+            PC::C     => self.pc = self.pc.wrapping_add(2*OP_LEN),
+            PC::JR(a) => self.pc = self.pc.wrapping_add(a),
+            PC::JA(a) => self.pc = a,
         }
     }
 
@@ -440,14 +443,15 @@ impl Cpu {
 
     // sprite v[x] v[y] n
     fn op_dxyn(&mut self, x: usize, y: usize, n: usize) -> PC {
+        println!("sprite v[{}] v[{}] {}", x, y, n);
         self.v[0xf] = 0;
         for byte in 0..n {
             let ii = (self.v[y] as usize + byte) % V_HEIGHT;
             for bit in 0..8 {
                 let jj = (self.v[x] as usize + byte) % V_WIDTH;
                 let c = (self.ram[self.i + byte] >> (7 - bit)) & 0x1;
-                self.v[0xf] |= c & self.vram[jj][ii]; // flag set if bit cleared
-                self.vram[jj][ii] ^= c;
+                self.v[0xf] |= c & self.vram[ii][jj]; // flag set if bit cleared
+                self.vram[ii][jj] ^= c;
             }
         }
         PC::I
@@ -531,3 +535,5 @@ impl Cpu {
 #[cfg(test)]
 #[path = "cpu_test.rs"]
 mod cpu_test;
+
+/* vim: set fdm=marker : */

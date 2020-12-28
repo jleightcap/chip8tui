@@ -1,57 +1,52 @@
-use sdl2;
-use sdl2::pixels;
-use sdl2::rect::Rect;
-use sdl2::render::Canvas;
-use sdl2::video::Window;
+use std::io;
 
-use crate::V_WIDTH;
-use crate::V_HEIGHT;
+use termion::raw::{IntoRawMode,RawTerminal};
+use tui::Terminal;
+use tui::backend::TermionBackend;
+use tui::widgets::{Widget, Block, Borders};
+use tui::layout::{Layout, Constraint, Direction};
 
-const SCALE: u32 = 20;
-const SCREEN_WIDTH:  u32 = (V_WIDTH  as u32) * SCALE;
-const SCREEN_HEIGHT: u32 = (V_HEIGHT as u32) * SCALE;
+pub const V_WIDTH:    usize = 64;
+pub const V_HEIGHT:   usize = 32;
 
 pub struct Screen {
-    canvas:     Canvas<Window>,
+    term: Terminal<TermionBackend<RawTerminal<io::Stdout>>>,
+    chunks: tui::layout::Layout,
 }
+
 impl Screen {
-    pub fn new(sdl_context: &sdl2::Sdl) -> Self {
-        let video = sdl_context.video().unwrap();
-        let window = video
-            .window(
-                "rust-sdl2_gfx: draw line & FPSManager",
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT,
-            )
-            .position_centered()
-            .opengl()
-            .build()
-            .unwrap();
-
-        let mut canvas = window.into_canvas().build().unwrap();
-
-        canvas.set_draw_color(pixels::Color::RGB(0, 0, 0));
-        canvas.clear();
-        canvas.present();
-
-        Screen { canvas: canvas }
+    pub fn new() -> Result<Self, io::Error> {
+        let stdout = io::stdout().into_raw_mode()?;
+        let backend = TermionBackend::new(stdout);
+        let mut term = Terminal::new(backend)?;
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints(
+                [
+                    Constraint::Min(V_HEIGHT as u16 + 2)
+                ].as_ref()
+            );
+        term.clear()?;
+        Ok(Screen {
+            term: term,
+            chunks: chunks,
+        })
     }
 
-    pub fn draw(&mut self, pixels: &[[u8; V_WIDTH]; V_HEIGHT]) {
-        for (y, &row) in pixels.iter().enumerate() {
-            for (x, &col) in row.iter().enumerate() {
-                let x = (x as u32) * SCALE;
-                let y = (y as u32) * SCALE;
+    pub fn render(&mut self, pixels: &[[u8; V_WIDTH]; V_HEIGHT]) {
+        let mut chunks = self.chunks.clone();
+        self.term.draw(|f| {
+            // check terminal is big enough to render at least the screen
+            assert!(f.size().width  >= V_WIDTH  as u16 + 2);
+            assert!(f.size().height >= V_HEIGHT as u16 + 2);
+            let chunks = chunks.split(f.size());
 
-                self.canvas.set_draw_color(color(col));
-                self.canvas.fill_rect(Rect::new(x as i32, y as i32, SCALE, SCALE)).unwrap();
-            }
-        }
-        self.canvas.present();
+            let block = Block::default()
+                .title("Screen")
+                .borders(Borders::ALL);
+
+            f.render_widget(block, chunks[0]);
+        }).unwrap();
     }
-}
-
-fn color(v: u8) -> pixels::Color {
-    if v == 0 { pixels::Color::RGB(0, 0,   0) }
-    else      { pixels::Color::RGB(0, 250, 0) }
 }
