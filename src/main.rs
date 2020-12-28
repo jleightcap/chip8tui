@@ -1,13 +1,11 @@
 use std::env;
 use std::io;
 
-mod screen;
-mod cpu;
-mod rom;
+mod screen; use screen::Screen;
+mod keypad; use keypad::Keypad;
+mod cpu; use cpu::Cpu;
+mod rom; use rom::ROM;
 
-use screen::Screen;
-use cpu::Cpu;
-use rom::ROM;
 
 fn main() -> Result<(), io::Error> {
     let fname = env::args().nth(1).expect("expected input file!");
@@ -17,7 +15,9 @@ fn main() -> Result<(), io::Error> {
     c.prog_init(&r);
 
     let mut screen = Screen::new()?;
+    let k = Keypad::new();
     for _ in 0..100 {
+        k.keytest()?;
         c.mcycle();
         screen.render(&c.vram);
     }
