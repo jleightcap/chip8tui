@@ -1,3 +1,6 @@
+use std::io::{Error, ErrorKind};
+use termion::event::Key;
+
 use crate::screen::V_WIDTH;
 use crate::screen::V_HEIGHT;
 
@@ -7,8 +10,7 @@ const OP_LEN: usize = 2; // number of words in an opcode
 enum PC {
     I,           // pc += 1*OP_LEN (increment)
     C,           // pc += 2*OP_LEN (condition, skip instrution)
-    JR(usize),   // pc += arg (relative jump)
-    JA(usize),   // pc  = arg (absolute jump)
+    J(usize),   // pc  = arg (absolute jump)
 }
 impl PC {
     fn cond(q: bool) -> PC {
@@ -156,18 +158,28 @@ impl Cpu {
         }
     }
 
-    pub fn prog_init(&mut self, r: &ROM) {
+    pub fn prog_init(&mut self, r: &ROM) -> Result<(), Error> {
         for ii in 0..r.rom.len() {
             if ii < RAM_SIZE + PC_BASE {
                 self.ram[PC_BASE + ii] = r.rom[ii];
             }
             else {
-                panic!("loaded program exceeds RAM!");
+                return Err(Error::new(ErrorKind::InvalidData, "Program exceeds RAM!"));
             }
+        }
+        Ok(())
+    }
+
+    // update CPU state based on Option<Key>
+    pub fn keyhandle(&mut self, kp: Option<Key>) {
+        match kp {
+            None    => { },
+            Some(k) => { println!("{:?}", k); },
         }
     }
 
     // insert an opcode at the current PC
+    #[allow(dead_code)]
     fn opcode_init(&mut self, op: u16) {
         self.ram[self.pc]     = ((op & 0xff00) >> 8) as u8;
         self.ram[self.pc + 1] = ((op & 0x00ff) >> 0) as u8;
@@ -202,84 +214,49 @@ impl Cpu {
         let n   = nibs.3 as usize;        // opcode argument
 
         let cycle_count: PC = match nibs {
-            (0x0, 0x0, 0xe, 0x0) =>     /* clear */
-                self.op_00e0(),
-            (0x0, 0x0, 0xe, 0xe) =>     /* return */
-                self.op_00ee(),
-            (0x1, _,   _,   _  ) =>     /* jump nnn */
-                self.op_1nnn(nnn),
-            (0x2, _,   _,   _  ) =>     /* call nnn */
-                self.op_2nnn(nnn),
-            (0x3, _,   _,   _  ) =>     /* if vx != nn then */
-                self.op_3xnn(x, nn),
-            (0x4, _,   _,   _  ) =>     /* if vx == nn then */
-                self.op_4xnn(x, nn),
-            (0x5, _,   _,   _  ) =>     /* if vx != vy then */
-                self.op_5xy0(x, y),
-            (0x6, _,   _,   _  ) =>     /* vx := nn */
-                self.op_6xnn(x, nn),
-            (0x7, _,   _,   _  ) =>     /*  vx += nn */
-                self.op_7xnn(x, nn),
-            (0x8, _,   _,   0x0) =>     /* vx := vy */
-                self.op_8xy0(x, y),
-            (0x8, _,   _,   0x1) =>     /* vx |= vy */
-                self.op_8xy1(x, y),
-            (0x8, _,   _,   0x2) =>     /* vx &= vy */
-                self.op_8xy2(x, y),
-            (0x8, _,   _,   0x3) =>     /* vx ^= vy */
-                self.op_8xy3(x, y),
-            (0x8, _,   _,   0x4) =>     /* vx += vy */
-                self.op_8xy4(x, y),
-            (0x8, _,   _,   0x5) =>     /* vx -= vy */
-                self.op_8xy5(x, y),
-            (0x8, _,   _,   0x6) =>     /* vx >>= vy */
-                self.op_8xy6(x, y),
-            (0x8, _,   _,   0x7) =>     /* vx = -vy */
-                self.op_8xy7(x, y),
-            (0x8, _,   _,   0xe) =>     /* vx <<= vy */
-                self.op_8xye(x, y),
-            (0x9, _,   _,   0x0) =>     /* if vx == vy then */
-                self.op_9xy0(x, y),
-            (0xa, _,   _,   _  ) =>     /* i := nnn */
-                self.op_annn(nnn),
-            (0xb, _,   _,   _  ) =>     /* jump nnn + v0 */
-                self.op_bnnn(nnn),
-            (0xc, _,   _,   _  ) =>     /* vx := random(0, 255) & nn */
-                self.op_cxnn(x, nn),
-            (0xd, _,   _,   _  ) =>     /* sprite vx vy n */
-                self.op_dxyn(x, y, n),
-            (0xe, _,   0x9, 0xe) =>     /* is a key not pressed? */
-                self.op_ex9e(x),
-            (0xe, _,   0xa, 0xe) =>     /* is a key pressed? */
-                self.op_ex9e(x),
-            (0xf, _,   0x0, 0x7) =>     /* vx := delay */
-                self.op_fx07(x),
-            (0xf, _,   0x0, 0xa) =>     /* vx := key */
-                self.op_fx0a(x),
-            (0xf, _,   0x1, 0x5) =>     /* delay := vx */
-                self.op_fx15(x),
-            (0xf, _,   0x1, 0x8) =>     /* buzzer := vx */
-                self.op_fx18(x),
-            (0xf, _,   0x1, 0xe) =>     /* buzzer := vx */
-                self.op_fx1e(x),
-            (0xf, _,   0x2, 0x9) =>     /* i := hex(vx) */
-                self.op_fx29(x),
-            (0xf, _,   0x3, 0x3) =>     /* bcd vx */
-                self.op_fx33(x),
-            (0xf, _,   0x5, 0x5) =>     /* save vx */
-                self.op_fx55(x),
-            (0xf, _,   0x6, 0x5) =>     /* load vx */
-                self.op_fx55(x),
+            (0x0, 0x0, 0xe, 0x0) => self.op_00e0(),         /* clear */
+            (0x0, 0x0, 0xe, 0xe) => self.op_00ee(),         /* return */
+            (0x1, _,   _,   _  ) => self.op_1nnn(nnn),      /* jump nnn */
+            (0x2, _,   _,   _  ) => self.op_2nnn(nnn),      /* call nnn */
+            (0x3, _,   _,   _  ) => self.op_3xnn(x, nn),    /* if vx != nn then */
+            (0x4, _,   _,   _  ) => self.op_4xnn(x, nn),    /* if vx == nn then */
+            (0x5, _,   _,   _  ) => self.op_5xy0(x, y),     /* if vx != vy then */
+            (0x6, _,   _,   _  ) => self.op_6xnn(x, nn),    /* vx := nn */
+            (0x7, _,   _,   _  ) => self.op_7xnn(x, nn),    /* vx += nn */
+            (0x8, _,   _,   0x0) => self.op_8xy0(x, y),     /* vx := vy */
+            (0x8, _,   _,   0x1) => self.op_8xy1(x, y),     /* vx |= vy */
+            (0x8, _,   _,   0x2) => self.op_8xy2(x, y),     /* vx &= vy */
+            (0x8, _,   _,   0x3) => self.op_8xy3(x, y),     /* vx ^= vy */
+            (0x8, _,   _,   0x4) => self.op_8xy4(x, y),     /* vx += vy */
+            (0x8, _,   _,   0x5) => self.op_8xy5(x, y),     /* vx -= vy */
+            (0x8, _,   _,   0x6) => self.op_8xy6(x, y),     /* vx >>= vy */
+            (0x8, _,   _,   0x7) => self.op_8xy7(x, y),     /* vx = -vy */
+            (0x8, _,   _,   0xe) => self.op_8xye(x, y),     /* vx <<= vy */
+            (0x9, _,   _,   0x0) => self.op_9xy0(x, y),     /* if vx == vy then */
+            (0xa, _,   _,   _  ) => self.op_annn(nnn),      /* i := nnn */
+            (0xb, _,   _,   _  ) => self.op_bnnn(nnn),      /* jump nnn + v0 */
+            (0xc, _,   _,   _  ) => self.op_cxnn(x, nn),    /* vx := random(0, 255) & nn */
+            (0xd, _,   _,   _  ) => self.op_dxyn(x, y, n),  /* sprite vx vy n */
+            (0xe, _,   0x9, 0xe) => self.op_ex9e(x),        /* is a key not pressed? */
+            (0xe, _,   0xa, 0x1) => self.op_exa1(x),        /* is a key pressed? */
+            (0xf, _,   0x0, 0x7) => self.op_fx07(x),        /* vx := delay */
+            (0xf, _,   0x0, 0xa) => self.op_fx0a(x),        /* vx := key */
+            (0xf, _,   0x1, 0x5) => self.op_fx15(x),        /* delay := vx */
+            (0xf, _,   0x1, 0x8) => self.op_fx18(x),        /* buzzer := vx */
+            (0xf, _,   0x1, 0xe) => self.op_fx1e(x),        /* buzzer := vx */
+            (0xf, _,   0x2, 0x9) => self.op_fx29(x),        /* i := hex(vx) */
+            (0xf, _,   0x3, 0x3) => self.op_fx33(x),        /* bcd vx */
+            (0xf, _,   0x5, 0x5) => self.op_fx55(x),        /* save vx */
+            (0xf, _,   0x6, 0x5) => self.op_fx65(x),        /* load vx */
             (_,   _,   _,   _  ) => {
                 panic!(format!("unexpected opcode {:#02x}!", op))
             },
         };
 
         match cycle_count {
-            PC::I     => self.pc = self.pc.wrapping_add(1*OP_LEN),
-            PC::C     => self.pc = self.pc.wrapping_add(2*OP_LEN),
-            PC::JR(a) => self.pc = self.pc.wrapping_add(a),
-            PC::JA(a) => self.pc = a,
+            PC::I    => self.pc = self.pc.wrapping_add(1*OP_LEN),
+            PC::C    => self.pc = self.pc.wrapping_add(2*OP_LEN),
+            PC::J(a) => self.pc = a,
         }
     }
 
@@ -298,13 +275,13 @@ impl Cpu {
     fn op_00ee(&mut self) -> PC {
         //println!("return");
         self.pc -= 1;
-        PC::JA(self.s[self.sp])
+        PC::J(self.s[self.sp])
     }
 
     // pc = nnn
     fn op_1nnn(&mut self, nnn: usize) -> PC {
         //println!("jmp {:#05x}", nnn);
-        PC::JA(nnn)
+        PC::J(nnn)
     }
 
     // call nnn
@@ -312,7 +289,7 @@ impl Cpu {
         //println!("call {:#05x}", nnn);
         self.s[self.sp] = self.pc + OP_LEN;
         self.sp += 1;
-        PC::JA(nnn)
+        PC::J(nnn)
     }
 
     // if v[x] != nn then
@@ -432,7 +409,7 @@ impl Cpu {
     // pc = nnn + v[0]
     fn op_bnnn(&mut self, nnn: usize) -> PC {
         //println!("pc = {:#05x} + v[0]", nnn);
-        PC::JA(nnn + self.v[0] as usize)
+        PC::J(nnn + self.v[0] as usize)
     }
 
     // v[x] = rand(255) & nn
