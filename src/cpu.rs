@@ -190,14 +190,15 @@ impl Cpu {
     }
 
     // one machine cycle
-    pub fn mcycle(&mut self) {
-        self.icycle();
+    pub fn mcycle(&mut self) -> Result<(), Error> {
+        self.icycle()?;
+        Ok(())
     }
 
     // one instruction cycle (variable machine cycle)
     // super handy specification:
     // http://johnearnest.github.io/Octo/docs/chip8ref.pdf
-    fn icycle(&mut self) {
+    fn icycle(&mut self) -> Result<(), Error> {
         let op = self.fetch();
         //println!("fetch [{:#08x}] {:#06x}", self.pc, op);
         // split 2-byte opcode into 4 nibbles
@@ -249,14 +250,16 @@ impl Cpu {
             (0xf, _,   0x5, 0x5) => self.op_fx55(x),        /* save vx */
             (0xf, _,   0x6, 0x5) => self.op_fx65(x),        /* load vx */
             (_,   _,   _,   _  ) => {
-                panic!(format!("unexpected opcode {:#02x}!", op))
+                return Err(Error::new(
+                    ErrorKind::InvalidData, format!("unexpected opcode {:#02x}!", op)
+                ));
             },
         };
 
         match cycle_count {
-            PC::I    => self.pc = self.pc.wrapping_add(1*OP_LEN),
-            PC::C    => self.pc = self.pc.wrapping_add(2*OP_LEN),
-            PC::J(a) => self.pc = a,
+            PC::I    => Ok(self.pc = self.pc.wrapping_add(1*OP_LEN)),
+            PC::C    => Ok(self.pc = self.pc.wrapping_add(2*OP_LEN)),
+            PC::J(a) => Ok(self.pc = a),
         }
     }
 

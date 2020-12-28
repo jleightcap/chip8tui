@@ -4,7 +4,7 @@ use super::*;
 fn exec_test_prog(p: &Vec<u16>, c: &mut Cpu) {
     for i in p {
         c.opcode_init(*i);
-        c.icycle();
+        c.icycle().unwrap();
     }
 }
 
@@ -24,7 +24,7 @@ fn test_init() {
 #[test]
 fn test_new_prog() {
     let mut c: Cpu = Cpu::new();
-    c.prog_init(&ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef]));
+    c.prog_init(&ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef])).unwrap();
     assert_eq!(c.ram[0x200], 0xde);
     assert_eq!(c.ram[0x201], 0xad);
     assert_eq!(c.ram[0x202], 0xbe);
