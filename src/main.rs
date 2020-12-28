@@ -18,6 +18,7 @@ fn main() -> Result<(), io::Error> {
 
     let mut screen = Screen::new()?;
     for _ in 0..100 {
+        c.mcycle();
         screen.render(&c.vram);
     }
     Ok(())

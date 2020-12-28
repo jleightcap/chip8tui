@@ -285,7 +285,7 @@ impl Cpu {
 
     // clear
     fn op_00e0(&mut self) -> PC {
-        println!("clear");
+        //println!("clear");
         for jj in 0..V_HEIGHT {
             for ii in 0..V_WIDTH {
                 self.vram[jj][ii] = 0;
@@ -296,20 +296,20 @@ impl Cpu {
 
     // return
     fn op_00ee(&mut self) -> PC {
-        println!("return");
+        //println!("return");
         self.pc -= 1;
         PC::JA(self.s[self.sp])
     }
 
     // pc = nnn
     fn op_1nnn(&mut self, nnn: usize) -> PC {
-        println!("jmp {:#05x}", nnn);
+        //println!("jmp {:#05x}", nnn);
         PC::JA(nnn)
     }
 
     // call nnn
     fn op_2nnn(&mut self, nnn: usize) -> PC {
-        println!("call {:#05x}", nnn);
+        //println!("call {:#05x}", nnn);
         self.s[self.sp] = self.pc + OP_LEN;
         self.sp += 1;
         PC::JA(nnn)
@@ -317,32 +317,32 @@ impl Cpu {
 
     // if v[x] != nn then
     fn op_3xnn(&mut self, x: usize, nn: u8) -> PC {
-        println!("if v[{}] != {} then", x, nn);
+        //println!("if v[{}] != {} then", x, nn);
         PC::cond(self.v[x] != nn)
     }
 
     // if v[x] == nn then
     fn op_4xnn(&mut self, x: usize, nn: u8) -> PC {
-        println!("if v[{}] == {} then", x, nn);
+        //println!("if v[{}] == {} then", x, nn);
         PC::cond(self.v[x] == nn)
     }
 
     // if v[x] != v[y] then
     fn op_5xy0(&mut self, x: usize, y: usize) -> PC {
-        println!("if v[{}] != v[{}] then", x, y);
+        //println!("if v[{}] != v[{}] then", x, y);
         PC::cond(self.v[x] != self.v[y])
     }
 
     // v[x] = nn
     fn op_6xnn(&mut self, x: usize, nn: u8) -> PC {
-        println!("v[{}] = {}", x, nn);
+        //println!("v[{}] = {}", x, nn);
         self.v[x] = nn;
         PC::I
     }
 
     // v[x] += nn
     fn op_7xnn(&mut self, x: usize, nn: u8) -> PC {
-        println!("v[{}] += {}", x, nn);
+        //println!("v[{}] += {}", x, nn);
         let res = self.v[x].wrapping_add(nn);
         self.v[x] = res as u8;
         PC::I
@@ -350,35 +350,35 @@ impl Cpu {
 
     // v[x] = v[y]
     fn op_8xy0(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] = v[{}]", x, y);
+        //println!("v[{}] = v[{}]", x, y);
         self.v[x] = self.v[y];
         PC::I
     }
 
     // v[x] |= v[y]
     fn op_8xy1(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] |= v[{}]", x, y);
+        //println!("v[{}] |= v[{}]", x, y);
         self.v[x] |= self.v[y];
         PC::I
     }
 
     // v[x] &= v[y]
     fn op_8xy2(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] &= v[{}]", x, y);
+        //println!("v[{}] &= v[{}]", x, y);
         self.v[x] &= self.v[y];
         PC::I
     }
 
     // v[x] ^= v[y]
     fn op_8xy3(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] ^= v[{}]", x, y);
+        //println!("v[{}] ^= v[{}]", x, y);
         self.v[x] ^= self.v[y];
         PC::I
     }
 
     // v[x] += v[y]
     fn op_8xy4(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] ++ v[{}]", x, y);
+        //println!("v[{}] ++ v[{}]", x, y);
         let res = self.v[x].wrapping_add(self.v[y]);
         self.v[x] = res as u8;
         PC::I
@@ -386,7 +386,7 @@ impl Cpu {
 
     // v[x] -= v[y]
     fn op_8xy5(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] -= v[{}]", x, y);
+        //println!("v[{}] -= v[{}]", x, y);
         let res = self.v[x].wrapping_sub(self.v[y]);
         self.v[x] = res as u8;
         return PC::I
@@ -394,7 +394,7 @@ impl Cpu {
 
     // v[x] >>= v[y]
     fn op_8xy6(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] >>= v[{}]", x, y);
+        //println!("v[{}] >>= v[{}]", x, y);
         let res = (self.v[x] as u16) >> (self.v[y] as u16);
         self.v[x] = res as u8; // does this underflow?
         return PC::I
@@ -402,7 +402,7 @@ impl Cpu {
 
     // v[x] = (v[y] - v[x])
     fn op_8xy7(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] =- v[{}]", x, y);
+        //println!("v[{}] =- v[{}]", x, y);
         let res = self.v[y].wrapping_sub(self.v[x]);
         self.v[x] = res as u8;
         return PC::I
@@ -410,7 +410,7 @@ impl Cpu {
 
     // v[x] <<= v[y]
     fn op_8xye(&mut self, x: usize, y: usize) -> PC {
-        println!("v[{}] <<= v[{}]", x, y);
+        //println!("v[{}] <<= v[{}]", x, y);
         let res = (self.v[x] as u16) << (self.v[y] as u16);
         self.v[x] = res as u8; // does this overflow?
         PC::I
@@ -418,20 +418,20 @@ impl Cpu {
 
     // if v[x] == v[y] then
     fn op_9xy0(&mut self, x: usize, y: usize) -> PC {
-        println!("if v[{}] == v[{}] then", x, y);
+        //println!("if v[{}] == v[{}] then", x, y);
         PC::cond(self.v[x] == self.v[y])
     }
 
     // i = nnn
     fn op_annn(&mut self, nnn: usize) -> PC {
-        println!("i = {:#05x}", nnn);
+        //println!("i = {:#05x}", nnn);
         self.i = nnn;
         PC::I
     }
 
     // pc = nnn + v[0]
     fn op_bnnn(&mut self, nnn: usize) -> PC {
-        println!("pc = {:#05x} + v[0]", nnn);
+        //println!("pc = {:#05x} + v[0]", nnn);
         PC::JA(nnn + self.v[0] as usize)
     }
 
@@ -443,7 +443,7 @@ impl Cpu {
 
     // sprite v[x] v[y] n
     fn op_dxyn(&mut self, x: usize, y: usize, n: usize) -> PC {
-        println!("sprite v[{}] v[{}] {}", x, y, n);
+        //println!("sprite v[{}] v[{}] {}", x, y, n);
         self.v[0xf] = 0;
         for byte in 0..n {
             let ii = (self.v[y] as usize + byte) % V_HEIGHT;
@@ -495,7 +495,7 @@ impl Cpu {
 
     // i += v[x]
     fn op_fx1e(&mut self, x: usize) -> PC {
-        println!("i += v[{}]", x);
+        //println!("i += v[{}]", x);
         let res = self.v[x].wrapping_add(self.i as u8);
         self.i = res as usize;
         PC::I
@@ -515,7 +515,7 @@ impl Cpu {
 
     // store v
     fn op_fx55(&mut self, x: usize) -> PC {
-        println!("store v");
+        //println!("store v");
         for ii in 0..REG_COUNT {
             self.ram[self.i + ii] = self.v[ii];
         }
@@ -524,7 +524,7 @@ impl Cpu {
 
     // load v
     fn op_fx65(&mut self, x: usize) -> PC {
-        println!("load v");
+        //println!("load v");
         for ii in 0..REG_COUNT {
             self.v[ii] = self.ram[self.i + ii];
         }
