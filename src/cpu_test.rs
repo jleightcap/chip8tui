@@ -9,15 +9,12 @@ fn exec_test_prog(p: &Vec<u16>, c: &mut Cpu) {
 }
 
 #[test]
-fn test_new_init() {
+fn test_new() {
     let c: Cpu = Cpu::new(None).unwrap();
     // register states
     assert_eq!(c.sp, 0x0);
     assert_eq!(c.pc, 0x200);
-}
 
-#[test]
-fn test_new_prog() {
     let c: Cpu = Cpu::new(
         Some(ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef]))
     ).unwrap();
@@ -30,13 +27,27 @@ fn test_new_prog() {
 
 #[test]
 fn test_cpu_reset() {
+    // reset on no program
     let mut c = Cpu::new(None).unwrap();
     c.ram[0x200] = 0x42;
     c.pc = 0xdead;
     c.i = 0xbeef;
-    c.reset();
+    c.reset().unwrap();
     assert_eq!(c.ram[0x200], 0x00);
     assert_eq!(c.pc, 0x200);
+    assert_eq!(c.i, 0x00);
+
+    // reset with some program
+    let mut c: Cpu = Cpu::new(
+        Some(ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef]))
+    ).unwrap();
+    c.pc = 0x204;
+    c.reset().unwrap();
+    assert_eq!(c.ram[0x200], 0xde); // the program is maintained
+    assert_eq!(c.ram[0x201], 0xad);
+    assert_eq!(c.ram[0x202], 0xbe);
+    assert_eq!(c.ram[0x203], 0xef);
+    assert_eq!(c.pc, 0x200); // but execution state is not
     assert_eq!(c.i, 0x00);
 }
 

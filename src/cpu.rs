@@ -182,7 +182,7 @@ impl Cpu {
             None    => { },
             Some(k) => {
                 match k {
-                    Key::Ctrl('r') => { self.reset(); },
+                    Key::Ctrl('r') => { self.reset().unwrap(); },
                     _ => { },
                 }
             },
