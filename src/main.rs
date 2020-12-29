@@ -12,14 +12,15 @@ fn main() -> Result<(), io::Error> {
     let fname = env::args().nth(1).expect("expected input file!");
 
     let r: ROM = ROM::new_file(&fname);
-    let mut c: Cpu = Cpu::new();
-    c.prog_init(&r);
+    let mut c: Cpu = Cpu::new(Some(r))?;
 
+    // components
     let mut screen = Screen::new()?;
-    let mut k = Keypad::new(async_stdin());
+    let mut keypad = Keypad::new(async_stdin());
+
     loop {
-        k.keytest()?;
-        c.mcycle();
+        c.keyhandle(keypad.getkey()?);
+        c.mcycle()?;
         screen.render(&c.vram);
     }
 }

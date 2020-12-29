@@ -7,6 +7,7 @@ use crate::cpu::PC_BASE;
 // maximum available program memory
 const ROM_SIZE: usize = RAM_SIZE - PC_BASE; 
 
+#[derive(Clone)]
 pub struct ROM {
     pub rom:    [u8; ROM_SIZE],
 }
@@ -22,6 +23,7 @@ impl ROM {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new_prog(p: &[u8]) -> Self {
         if p.len() > ROM_SIZE {
             panic!("ROM program exceeds available memory!");

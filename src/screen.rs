@@ -3,9 +3,9 @@ use std::io;
 use termion::raw::{IntoRawMode,RawTerminal};
 use tui::Terminal;
 use tui::backend::TermionBackend;
-use tui::widgets::{Widget, Block, Borders, BorderType};
+use tui::widgets::{Block, Borders};
 use tui::widgets::canvas::{Canvas, Points};
-use tui::style::{Style, Color};
+use tui::style::{Color};
 use tui::layout::{Layout, Constraint, Direction};
 
 pub const V_WIDTH:    usize = 64;
