@@ -5,7 +5,7 @@ use termion::input::TermRead;
 use termion::AsyncReader;
 
 pub struct Keypad {
-    astdin: AsyncReader,
+    astdin: AsyncReader, // asynchronous thread to handle input
 }
 
 impl Keypad {
@@ -13,21 +13,24 @@ impl Keypad {
         Keypad { astdin: stdin }
     }
 
-    pub fn keytest(&mut self) -> Result<(), Error> {
-        for c in self.astdin.by_ref().keys() {
-            let key = c.unwrap();
-            println!("{:?}", key);
-            match key {
-                Key::Ctrl('c') => {
-                    return Err(Error::new(ErrorKind::Interrupted, "exit CHIP8"))
+    pub fn getkey(&mut self) -> Result<Option<Key>, Error> {
+        let event = self.astdin.by_ref().keys().nth(0);
+        match event {
+            // no key pressed
+            None => Ok(None),
+            // handle keys that affect global state (exit program, for example)
+            // otherwise return key to be handled in updating CPU state
+            Some(keypress) => 
+                match keypress {
+                    Ok(key) => match key {
+                        // special key handlers
+                        Key::Ctrl('c') =>
+                            Err(Error::new(ErrorKind::Interrupted, "exit CHIP8")),
+                        _ => Ok(Some(key)),
+                    },
+                    Err(_) => Err(Error::new(ErrorKind::NotFound, "bad keypress!")),
                 },
-                Key::Char('a') => {
-                    return Err(Error::new(ErrorKind::Interrupted, "AAAAA"))
-                }
-                _ => { break; },
-            }
         }
-        Ok(())
     }
 }
 
