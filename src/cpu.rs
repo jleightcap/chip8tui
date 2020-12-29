@@ -3,14 +3,13 @@ use termion::event::Key;
 
 use crate::screen::V_WIDTH;
 use crate::screen::V_HEIGHT;
-
 use crate::rom::ROM;
 
 const OP_LEN: usize = 2; // number of words in an opcode
 enum PC {
     I,           // pc += 1*OP_LEN (increment)
     C,           // pc += 2*OP_LEN (condition, skip instrution)
-    J(usize),   // pc  = arg (absolute jump)
+    J(usize),    // pc  = arg (absolute jump)
 }
 impl PC {
     fn cond(q: bool) -> PC {
@@ -130,7 +129,7 @@ pub const PC_BASE:    usize = 0x200;
 pub struct Cpu {
     /* memory */
     ram:        [u8; RAM_SIZE],             // RAM tape
-    pub vram:   [[u8; V_WIDTH]; V_HEIGHT],  // video RAM
+    pub vram:   [[u8; V_HEIGHT]; V_WIDTH],  // video RAM
 
     /* stack */
     sp:         usize,                      // stack pointer
@@ -144,13 +143,10 @@ pub struct Cpu {
 }
 impl Cpu {
     pub fn new(prog: Option<ROM>) -> Result<Self, Error> {
-        let ram = match prog {
-            None        => [0; RAM_SIZE],
-            Some(ref r) => Cpu::ram_init(&r)?,
-        };
+        let ram = Cpu::ram_init(&prog)?;
         Ok(Cpu {
             ram:    ram,
-            vram:   [[0; V_WIDTH]; V_HEIGHT],
+            vram:   [[0; V_HEIGHT]; V_WIDTH],
             sp:     0x0,
             s:      [0; STACK_SIZE],
             i:      0x000,
@@ -160,19 +156,23 @@ impl Cpu {
         })
     }
 
-    fn ram_init(r: &ROM) -> Result<[u8; RAM_SIZE], Error> {
+    fn ram_init(rom: &Option<ROM>) -> Result<[u8; RAM_SIZE], Error> {
         let mut ram = [0; RAM_SIZE];
+        // always initialize font in RAM
         for ii in 0..FONT.len() {
             ram[ii] = FONT[ii]; // XXX: is this a memcpy?
         }
-        for ii in 0..r.rom.len() {
-            if ii < RAM_SIZE + PC_BASE {
-                ram[PC_BASE + ii] = r.rom[ii];
-            }
-            else {
-                return Err(Error::new(ErrorKind::InvalidData, "Program exceeds RAM!"));
-            }
-        }
+        match rom {
+            None => { },
+            Some(r) => {
+                if PC_BASE + r.rom.len() > RAM_SIZE {
+                    return Err(Error::new(ErrorKind::InvalidData, "Program exceeds RAM!"));
+                }
+                for ii in 0..r.rom.len() {
+                    ram[PC_BASE + ii] = r.rom[ii];
+                }
+            },
+        };
         Ok(ram)
     }
 
@@ -284,7 +284,7 @@ impl Cpu {
         //println!("clear");
         for jj in 0..V_HEIGHT {
             for ii in 0..V_WIDTH {
-                self.vram[jj][ii] = 0;
+                self.vram[ii][jj] = 0;
             }
         }
         PC::I
@@ -439,15 +439,14 @@ impl Cpu {
 
     // sprite v[x] v[y] n
     fn op_dxyn(&mut self, x: usize, y: usize, n: usize) -> PC {
-        //println!("sprite v[{}] v[{}] {}", x, y, n);
-        self.v[0xf] = 0;
-        for byte in 0..n {
-            let ii = (self.v[y] as usize + byte) % V_HEIGHT;
+        self.v[0xf] = 0; // change flag
+        for byte_number in 0..n {
+            let sprite_y = (self.v[y] as usize + byte_number) % V_HEIGHT;
             for bit in 0..8 {
-                let jj = (self.v[x] as usize + byte) % V_WIDTH;
-                let c = (self.ram[self.i + byte] >> (7 - bit)) & 0x1;
-                self.v[0xf] |= c & self.vram[ii][jj]; // flag set if bit cleared
-                self.vram[ii][jj] ^= c;
+                let sprite_x = (self.v[x] as usize + bit) % V_WIDTH;
+                let c = (self.ram[self.i + byte_number] >> (7 - bit)) & 0x1;
+                self.v[0xf] |= c & self.vram[sprite_x][sprite_y]; // flag set if bit cleared
+                self.vram[sprite_x][sprite_y] ^= c;
             }
         }
         PC::I

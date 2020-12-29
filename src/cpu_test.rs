@@ -10,11 +10,17 @@ fn exec_test_prog(p: &Vec<u16>, c: &mut Cpu) {
 
 #[test]
 fn test_new() {
+    // initialize without program
     let c: Cpu = Cpu::new(None).unwrap();
-    // register states
     assert_eq!(c.sp, 0x0);
     assert_eq!(c.pc, 0x200);
 
+    // font in interpreter memory
+    for ii in 0..FONT.len() {
+        assert_eq!(c.ram[ii], FONT[ii]);
+    }
+
+    // initialize with program
     let c: Cpu = Cpu::new(
         Some(ROM::new_prog(&[0xde, 0xad, 0xbe, 0xef]))
     ).unwrap();
@@ -23,6 +29,11 @@ fn test_new() {
     assert_eq!(c.ram[0x201], 0xad);
     assert_eq!(c.ram[0x202], 0xbe);
     assert_eq!(c.ram[0x203], 0xef);
+
+    // font in interpreter memory
+    for ii in 0..FONT.len() {
+        assert_eq!(c.ram[ii], FONT[ii]);
+    }
 }
 
 #[test]
@@ -56,11 +67,11 @@ fn test_cpu_reset() {
 fn test_0x00e0() {
     let mut c = Cpu::new(None).unwrap();
     c.vram[3][4] = 1;
-    c.vram[31][63] = 2;
+    c.vram[63][31] = 2;
     exec_test_prog(&vec![0x00e0], &mut c);
-    for jj in 0..V_HEIGHT {
-        for ii in 0..V_WIDTH {
-            assert_eq!(c.vram[jj][ii], 0);
+    for ii in 0..V_WIDTH {
+        for jj in 0..V_HEIGHT {
+            assert_eq!(c.vram[ii][jj], 0);
         }
     }
 }
@@ -244,6 +255,22 @@ fn test_0xbnnn() {
     let mut c = Cpu::new(None).unwrap();
     exec_test_prog(&vec![0x6021, 0xb221], &mut c);
     assert_eq!(c.pc, 0x242); // pc = v[0] + nnn
+}
+
+#[test]
+fn test_0xdxyn() {
+    // sprite test: use FONT[0] = '0'
+    let mut c = Cpu::new(None).unwrap();
+    c.v[0] = 0;
+    c.v[1] = 0;
+    c.i = 0x000;
+    exec_test_prog(&vec![0xd015], &mut c);
+    assert_eq!(c.pc, 0x202);
+    let s = &c.vram[0..4]; // 4 columns of sprite
+    assert_eq!(&s[0][0..5], [1, 1, 1, 1, 1]);
+    assert_eq!(&s[1][0..5], [1, 0, 0, 0, 1]);
+    assert_eq!(&s[2][0..5], [1, 0, 0, 0, 1]);
+    assert_eq!(&s[3][0..5], [1, 1, 1, 1, 1]);
 }
 
 #[test]

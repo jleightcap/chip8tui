@@ -29,7 +29,7 @@ impl Screen {
             .margin(1)
             .constraints(
                 [
-                    Constraint::Min(V_HEIGHT as u16 + 2)
+                    Constraint::Length(V_HEIGHT as u16 + 2)
                 ].as_ref()
             );
 
@@ -39,7 +39,8 @@ impl Screen {
         })
     }
 
-    pub fn render(&mut self, pixels: &[[u8; V_WIDTH]; V_HEIGHT]) {
+    // TODO: pass vram as compile-time constant &[&[u8]]
+    pub fn render(&mut self, pixels: &[[u8; V_HEIGHT]; V_WIDTH]) {
         // copy out config pieces of the screen struct that need coercing 
         //
         // the |f| lambda below makes borrowing weird and I'm losing arguments
@@ -52,11 +53,12 @@ impl Screen {
                 .x_bounds([0.0, V_WIDTH  as f64])
                 .y_bounds([0.0, V_HEIGHT as f64])
                 .paint(|ctx| {
-
                     let mut pts: Vec<(f64, f64)> = Vec::new();
                     for ii in 0..pixels.len() {
                         for jj in 0..pixels[ii].len() {
-                            if pixels[ii][jj] == 1 { pts.push((ii as f64, jj as f64)) };
+                            let px = ii;
+                            let py = (V_HEIGHT as i32 - jj as i32).abs() as usize;
+                            if pixels[ii][jj] == 1 { pts.push((px as f64, py as f64)) };
                         }
                     }
 
