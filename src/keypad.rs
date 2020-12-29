@@ -13,6 +13,7 @@ impl Keypad {
         Keypad { astdin: stdin }
     }
 
+    // TODO: spin out into testable keyhandler
     pub fn getkey(&mut self) -> Result<Option<Key>, Error> {
         let event = self.astdin.by_ref().keys().nth(0);
         match event {
