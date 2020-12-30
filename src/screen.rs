@@ -58,9 +58,10 @@ impl Screen {
                     let mut pts: Vec<(f64, f64)> = Vec::new();
                     for ii in 0..pixels.len() {
                         for jj in 0..pixels[ii].len() {
-                            let px = ii;
-                            let py = (V_HEIGHT as i32 - jj as i32).abs() as usize;
-                            if pixels[ii][jj] == 1 { pts.push((px as f64, py as f64)) };
+                            let px = ii as f64;
+                            // convert Canvas y coordinate to graphics coordinates
+                            let py = (V_HEIGHT as f64 - jj as f64).abs();
+                            if pixels[ii][jj] == 1 { pts.push((px, py)) };
                         }
                     }
 
