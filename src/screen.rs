@@ -3,9 +3,9 @@ use std::io;
 use termion::raw::{IntoRawMode,RawTerminal};
 use tui::Terminal;
 use tui::backend::TermionBackend;
-use tui::widgets::{Block, Borders};
-use tui::widgets::canvas::{Canvas, Points};
+use tui::widgets::{Block, Borders, canvas::{Canvas, Points}};
 use tui::style::{Color};
+use tui::symbols::{Marker};
 use tui::layout::{Layout, Constraint, Direction};
 
 pub const V_WIDTH:    usize = 64;
@@ -41,15 +41,17 @@ impl Screen {
 
     // TODO: pass vram as compile-time constant &[&[u8]]
     pub fn render(&mut self, pixels: &[[u8; V_HEIGHT]; V_WIDTH]) {
-        // copy out config pieces of the screen struct that need coercing 
+        // I hope I can come back to this and think:
+        // "man, I *was* bad at Rust"
         //
-        // the |f| lambda below makes borrowing weird and I'm losing arguments
-        // with the compiler
+        // - self.chunks inside the |f| closure
+        // - move canvas into Screen struct
         let chunks = self.chunks.clone();
         self.term.draw(|f| {
             let canvas =
                 Canvas::default()
                 .block(Block::default().title("CHIP8").borders(Borders::ALL))
+                .marker(Marker::Block)
                 .x_bounds([0.0, V_WIDTH  as f64])
                 .y_bounds([0.0, V_HEIGHT as f64])
                 .paint(|ctx| {
