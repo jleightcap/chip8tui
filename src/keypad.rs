@@ -1,8 +1,10 @@
 use std::io::{Error, ErrorKind, Read};
 
-use termion::event::Key;
-use termion::input::TermRead;
-use termion::AsyncReader;
+use termion::{
+    event::Key,
+    input::TermRead,
+    AsyncReader,
+};
 
 pub struct Keypad {
     astdin: AsyncReader, // asynchronous thread to handle input

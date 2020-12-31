@@ -1,12 +1,25 @@
 use std::io;
 
 use termion::raw::{IntoRawMode,RawTerminal};
-use tui::Terminal;
-use tui::backend::TermionBackend;
-use tui::widgets::{Block, Borders, canvas::{Canvas, Points}};
-use tui::style::{Color};
-use tui::symbols::{Marker};
-use tui::layout::{Layout, Constraint, Direction};
+use tui::{
+    Terminal,
+    backend::TermionBackend,
+    widgets::{
+        Block,
+        Borders,
+        canvas::{
+            Canvas,
+            Points
+        },
+    },
+    style::Color,
+    symbols::Marker,
+    layout::{
+        Layout,
+        Constraint,
+        Direction
+    },
+};
 
 pub const V_WIDTH:    usize = 64;
 pub const V_HEIGHT:   usize = 32;
