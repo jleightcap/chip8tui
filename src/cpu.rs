@@ -144,6 +144,7 @@ pub struct Cpu {
     v:          [u8; REG_COUNT],            // general registers
     i:          usize,                      // index register
     pc:         usize,                      // program counter
+    kreg:       usize,                      // keypad register
 
     /* timers */
     delay:      u8,                         // delay timer
@@ -154,6 +155,7 @@ pub struct Cpu {
     keyb:       Option<Keypad>,             // key reader
     prog:       Option<ROM>,                // store program (restore from reset)
     k:          Option<u8>,                 // key pressed on current machine cycle
+    kwait:      bool,                       // waiting for key press
 }
 impl Cpu {
     pub fn new(prog: Option<ROM>, keyb: Option<Keypad>, v: bool) -> Result<Self, Error> {
@@ -166,12 +168,14 @@ impl Cpu {
             v:          [0; REG_COUNT],
             i:          0x000,
             pc:         PC_BASE,
+            kreg:       0,
             delay:      0,
             sound:      0,
             verbose:    v,
             keyb:       keyb,
             prog:       prog,
             k:          None,
+            kwait:      false,
         })
     }
 
@@ -196,34 +200,29 @@ impl Cpu {
     }
 
     // update CPU state based on key pressed key (or lack thereof)
-    pub fn keyhandle(&mut self, kp: Option<Key>) {
+    pub fn keyhandle(&mut self, kp: Key) {
         match kp {
-            None    => self.k = None,
-            Some(k) => {
-                match k {
-                    // control emulator state
-                    Key::Ctrl('r') => self.reset().unwrap(),
-                    // control CPU state
-                    Key::Char('0') => self.k = Some(0x0),
-                    Key::Char('1') => self.k = Some(0x1),
-                    Key::Char('2') => self.k = Some(0x2),
-                    Key::Char('3') => self.k = Some(0x3),
-                    Key::Char('4') => self.k = Some(0x4),
-                    Key::Char('5') => self.k = Some(0x5),
-                    Key::Char('6') => self.k = Some(0x6),
-                    Key::Char('7') => self.k = Some(0x7),
-                    Key::Char('8') => self.k = Some(0x8),
-                    Key::Char('9') => self.k = Some(0x9),
-                    Key::Char('a') => self.k = Some(0xa),
-                    Key::Char('b') => self.k = Some(0xb),
-                    Key::Char('c') => self.k = Some(0xc),
-                    Key::Char('d') => self.k = Some(0xd),
-                    Key::Char('e') => self.k = Some(0xe),
-                    Key::Char('f') => self.k = Some(0xf),
-                    // unhandled key, no state change
-                    _              => self.k = None,
-                }
-            },
+            // control emulator state
+            Key::Ctrl('r') => self.reset().unwrap(),
+            // control CPU state
+            Key::Char('0') => self.k = Some(0x0),
+            Key::Char('1') => self.k = Some(0x1),
+            Key::Char('2') => self.k = Some(0x2),
+            Key::Char('3') => self.k = Some(0x3),
+            Key::Char('4') => self.k = Some(0x4),
+            Key::Char('5') => self.k = Some(0x5),
+            Key::Char('6') => self.k = Some(0x6),
+            Key::Char('7') => self.k = Some(0x7),
+            Key::Char('8') => self.k = Some(0x8),
+            Key::Char('9') => self.k = Some(0x9),
+            Key::Char('a') => self.k = Some(0xa),
+            Key::Char('b') => self.k = Some(0xb),
+            Key::Char('c') => self.k = Some(0xc),
+            Key::Char('d') => self.k = Some(0xd),
+            Key::Char('e') => self.k = Some(0xe),
+            Key::Char('f') => self.k = Some(0xf),
+            // unhandled key, no state change
+            _              => self.k = None,
         }
     }
 
@@ -239,6 +238,7 @@ impl Cpu {
         self.ram    = ram;
         self.vram   = [[0; V_HEIGHT]; V_WIDTH];
         self.sp     = 0x0;
+        self.kreg   = 0;
         self.s      = [0; STACK_SIZE];
         self.i      = 0x000;
         self.pc     = PC_BASE;
@@ -246,6 +246,7 @@ impl Cpu {
         self.sound  =  0;
         self.v      = [0; REG_COUNT];
         self.k      = None;
+        self.kwait  = false;
         Ok(())
     }
 
@@ -259,8 +260,26 @@ impl Cpu {
             None       => Ok(None),
             Some(keyb) => keyb.getkey(),
         }?;
-        self.keyhandle(key);
-        self.icycle()?;
+        
+        // halt state, wait for keypress
+        if self.kwait { 
+            match key {
+                None    => (),
+                Some(k) => {
+                    self.kwait = false;
+                    self.keyhandle(k);
+                }
+            }
+        } else {
+            // decrement timers
+            if self.delay > 0 {
+                self.delay -= 1;
+            }
+            if self.sound > 0 {
+                self.sound -= 1;
+            }
+            self.icycle()?;
+        }
         Ok(())
     }
 
@@ -438,8 +457,8 @@ impl Cpu {
     }
 
     // v[x] >>= v[y]
-    fn op_8xy6(&mut self, x: usize, y: usize) -> PC {
-        let res = (self.v[x] as u16) >> (self.v[y] as u16);
+    fn op_8xy6(&mut self, x: usize, _y: usize) -> PC {
+        let res = (self.v[x] as u16) / 2;
         self.v[x] = res as u8; // does this underflow?
         // flag set old LSB
         self.v[0xf] = if self.v[x] & 0b0000_0001 == 0b0000_0001 { 1 } else { 0 };
@@ -456,8 +475,8 @@ impl Cpu {
     }
 
     // v[x] <<= v[y]
-    fn op_8xye(&mut self, x: usize, y: usize) -> PC {
-        let res = (self.v[x] as u16) << (self.v[y] as u16);
+    fn op_8xye(&mut self, x: usize, _y: usize) -> PC {
+        let res = (self.v[x] as u16) * 2;
         // flag set old MSB
         self.v[0xf] = if self.v[x] & 0b1000_0000 == 0b1000_0000 { 1 } else { 0 };
         self.v[x] = res as u8; // does this overflow?
@@ -529,10 +548,8 @@ impl Cpu {
 
     // v[x] = key
     fn op_fx0a(&mut self, x: usize) -> PC {
-        match self.k {
-            None    => { },
-            Some(k) => self.v[x] = k,
-        };
+        self.kreg = x;
+        self.kwait = true;
         PC::I
     }
 
