@@ -348,8 +348,10 @@ impl Cpu {
 
     // return
     fn op_00ee(&mut self) -> PC {
+        let rl = self.s[self.sp];
         self.pc -= 1;
-        PC::J(self.s[self.sp])
+        if self.verbose { println!("stack: {:#x?}", self.s); }
+        PC::J(rl)
     }
 
     // pc = nnn
@@ -359,8 +361,9 @@ impl Cpu {
 
     // call nnn
     fn op_2nnn(&mut self, nnn: usize) -> PC {
-        self.s[self.sp] = self.pc + OP_LEN;
         self.sp += 1;
+        self.s[self.sp] = self.pc + OP_LEN;
+        if self.verbose { println!("stack: {:#x?}", self.s); }
         PC::J(nnn)
     }
 
