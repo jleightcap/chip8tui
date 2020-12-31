@@ -376,6 +376,8 @@ impl Cpu {
     fn op_8xy4(&mut self, x: usize, y: usize) -> PC {
         //println!("v[{}] ++ v[{}]", x, y);
         let res = self.v[x].wrapping_add(self.v[y]);
+        // flag set on addition overflow
+        self.v[0xf] = if self.v[x] ^ res == 0b1000_0000 { 1 } else { 0 };
         self.v[x] = res as u8;
         PC::I
     }
@@ -384,8 +386,10 @@ impl Cpu {
     fn op_8xy5(&mut self, x: usize, y: usize) -> PC {
         //println!("v[{}] -= v[{}]", x, y);
         let res = self.v[x].wrapping_sub(self.v[y]);
+        // flag set on subtraction underflow
+        self.v[0xf] = if self.v[x] ^ res == 0b1000_0000 { 1 } else { 0 };
         self.v[x] = res as u8;
-        return PC::I
+        PC::I
     }
 
     // v[x] >>= v[y]
@@ -393,13 +397,17 @@ impl Cpu {
         //println!("v[{}] >>= v[{}]", x, y);
         let res = (self.v[x] as u16) >> (self.v[y] as u16);
         self.v[x] = res as u8; // does this underflow?
-        return PC::I
+        // flag set old LSB
+        self.v[0xf] = if self.v[x] & 0b0000_0001 == 0b0000_0001 { 1 } else { 0 };
+        PC::I
     }
 
     // v[x] = (v[y] - v[x])
     fn op_8xy7(&mut self, x: usize, y: usize) -> PC {
         //println!("v[{}] =- v[{}]", x, y);
         let res = self.v[y].wrapping_sub(self.v[x]);
+        // flag set on subtraction underflow
+        self.v[0xf] = if self.v[x] ^ res == 0b1000_0000 { 1 } else { 0 };
         self.v[x] = res as u8;
         return PC::I
     }
@@ -408,6 +416,8 @@ impl Cpu {
     fn op_8xye(&mut self, x: usize, y: usize) -> PC {
         //println!("v[{}] <<= v[{}]", x, y);
         let res = (self.v[x] as u16) << (self.v[y] as u16);
+        // flag set old MSB
+        self.v[0xf] = if self.v[x] & 0b1000_0000 == 0b1000_0000 { 1 } else { 0 };
         self.v[x] = res as u8; // does this overflow?
         PC::I
     }
