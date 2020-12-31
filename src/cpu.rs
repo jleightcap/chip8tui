@@ -150,26 +150,28 @@ pub struct Cpu {
     sound:      u8,                         // sound timer
 
     /* emulator state */
+    verbose:    bool,                       // print debug information
     keyb:       Option<Keypad>,             // key reader
     prog:       Option<ROM>,                // store program (restore from reset)
     k:          Option<u8>,                 // key pressed on current machine cycle
 }
 impl Cpu {
-    pub fn new(prog: Option<ROM>, keyb: Option<Keypad>) -> Result<Self, Error> {
+    pub fn new(prog: Option<ROM>, keyb: Option<Keypad>, v: bool) -> Result<Self, Error> {
         let ram = Cpu::ram_init(&prog)?;
         Ok(Cpu {
-            ram:    ram,
-            vram:   [[0; V_HEIGHT]; V_WIDTH],
-            sp:     0x0,
-            s:      [0; STACK_SIZE],
-            i:      0x000,
-            pc:     PC_BASE,
-            delay:  0,
-            sound:  0,
-            v:      [0; REG_COUNT],
-            keyb:   keyb,
-            prog:   prog,
-            k:      None,
+            ram:        ram,
+            vram:       [[0; V_HEIGHT]; V_WIDTH],
+            sp:         0x0,
+            s:          [0; STACK_SIZE],
+            v:          [0; REG_COUNT],
+            i:          0x000,
+            pc:         PC_BASE,
+            delay:      0,
+            sound:      0,
+            verbose:    v,
+            keyb:       keyb,
+            prog:       prog,
+            k:          None,
         })
     }
 
@@ -267,7 +269,7 @@ impl Cpu {
     // http://johnearnest.github.io/Octo/docs/chip8ref.pdf
     fn icycle(&mut self) -> Result<(), Error> {
         let op = self.fetch();
-        //println!("fetch [{:#08x}] {:#06x}", self.pc, op);
+        if self.verbose { println!("fetch [{:#08x}] {:#06x}", self.pc, op); }
         // split 2-byte opcode into 4 nibbles
         let nibs = (
             (op & 0xf000) >> 12 as u8,

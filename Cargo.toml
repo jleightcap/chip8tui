@@ -5,6 +5,7 @@ authors = ["jleightcap <jleightcap@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-rand = "0.7.3"
-tui = "0.13"
-termion = "1.5"
+rand    = "0.7.3"
+tui     = "0.13"
+termion = "1"
+clap    = "2"

@@ -25,12 +25,14 @@ pub const V_WIDTH:    usize = 64;
 pub const V_HEIGHT:   usize = 32;
 
 pub struct Screen {
+    enable:         bool,
     term:           Terminal<TermionBackend<RawTerminal<io::Stdout>>>,
     chunks:         tui::layout::Layout,
 }
 
 impl Screen {
-    pub fn new() -> Result<Self, io::Error> {
+    pub fn new(enable: bool) -> Result<Option<Self>, io::Error> {
+        if !enable { return Ok(None) }
         let stdout = io::stdout().into_raw_mode()?;
         let backend = TermionBackend::new(stdout);
         let mut term = Terminal::new(backend)?;
@@ -46,10 +48,11 @@ impl Screen {
                 ].as_ref()
             );
 
-        Ok(Screen {
+        Ok(Some(Screen {
+            enable: enable,
             term:   term,
             chunks: chunks,
-        })
+        }))
     }
 
     // TODO: pass vram as compile-time constant &[&[u8]]
@@ -59,6 +62,7 @@ impl Screen {
         //
         // - self.chunks inside the |f| closure
         // - move canvas into Screen struct
+        if !self.enable { return; }
         let chunks = self.chunks.clone();
         self.term.draw(|f| {
             let canvas =
