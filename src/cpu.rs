@@ -1,3 +1,5 @@
+extern crate rand;
+
 use std::io::{Error, ErrorKind};
 use termion::event::Key;
 
@@ -443,7 +445,11 @@ impl Cpu {
 
     // v[x] = rand(255) & nn
     fn op_cxnn(&mut self, x: usize, nn: u8) -> PC {
-        panic!("TODO: random");
+        // two approaches:
+        // 0: r = rand() % nn
+        // 1: r = (rand() % 255) & nn
+        // both produce r in [0, nn], but distrubtion of (1) follows instruction set
+        self.v[x] = (rand::random::<u8>() % 255) & nn;
         PC::I
     }
 
