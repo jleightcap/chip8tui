@@ -3,10 +3,12 @@ extern crate rand;
 use std::io::{Error, ErrorKind};
 use termion::event::Key;
 
-use crate::keypad::Keypad;
-use crate::screen::V_WIDTH;
-use crate::screen::V_HEIGHT;
-use crate::rom::ROM;
+use crate::{
+    keypad::Keypad,
+    screen::V_WIDTH,
+    screen::V_HEIGHT,
+    rom::ROM,
+};
 
 const OP_LEN: usize = 2; // number of words in an opcode
 enum PC {
@@ -143,13 +145,17 @@ pub struct Cpu {
     i:          usize,                      // index register
     pc:         usize,                      // program counter
 
+    /* timers */
+    delay:      u8,                         // delay timer
+    sound:      u8,                         // sound timer
+
     /* emulator state */
-    keeb:       Option<Keypad>,             // key reader
+    keyb:       Option<Keypad>,             // key reader
     prog:       Option<ROM>,                // store program (restore from reset)
-    k:          Option<Key>,                // key pressed on current machine cycle
+    k:          Option<u8>,                 // key pressed on current machine cycle
 }
 impl Cpu {
-    pub fn new(prog: Option<ROM>, keeb: Option<Keypad>) -> Result<Self, Error> {
+    pub fn new(prog: Option<ROM>, keyb: Option<Keypad>) -> Result<Self, Error> {
         let ram = Cpu::ram_init(&prog)?;
         Ok(Cpu {
             ram:    ram,
@@ -158,8 +164,10 @@ impl Cpu {
             s:      [0; STACK_SIZE],
             i:      0x000,
             pc:     PC_BASE,
+            delay:  0,
+            sound:  0,
             v:      [0; REG_COUNT],
-            keeb:   keeb,
+            keyb:   keyb,
             prog:   prog,
             k:      None,
         })
@@ -194,22 +202,22 @@ impl Cpu {
                     // control emulator state
                     Key::Ctrl('r') => self.reset().unwrap(),
                     // control CPU state
-                    Key::Char('0') |
-                    Key::Char('1') |
-                    Key::Char('2') |
-                    Key::Char('3') |
-                    Key::Char('4') |
-                    Key::Char('5') |
-                    Key::Char('6') |
-                    Key::Char('7') |
-                    Key::Char('8') |
-                    Key::Char('9') |
-                    Key::Char('a') |
-                    Key::Char('b') |
-                    Key::Char('c') |
-                    Key::Char('d') |
-                    Key::Char('e') |
-                    Key::Char('f') => self.k = kp,
+                    Key::Char('0') => self.k = Some(0x0),
+                    Key::Char('1') => self.k = Some(0x1),
+                    Key::Char('2') => self.k = Some(0x2),
+                    Key::Char('3') => self.k = Some(0x3),
+                    Key::Char('4') => self.k = Some(0x4),
+                    Key::Char('5') => self.k = Some(0x5),
+                    Key::Char('6') => self.k = Some(0x6),
+                    Key::Char('7') => self.k = Some(0x7),
+                    Key::Char('8') => self.k = Some(0x8),
+                    Key::Char('9') => self.k = Some(0x9),
+                    Key::Char('a') => self.k = Some(0xa),
+                    Key::Char('b') => self.k = Some(0xb),
+                    Key::Char('c') => self.k = Some(0xc),
+                    Key::Char('d') => self.k = Some(0xd),
+                    Key::Char('e') => self.k = Some(0xe),
+                    Key::Char('f') => self.k = Some(0xf),
                     // unhandled key, no state change
                     _              => self.k = None,
                 }
@@ -226,14 +234,16 @@ impl Cpu {
 
     fn reset(&mut self) -> Result<(), Error> {
         let ram = Cpu::ram_init(&self.prog)?;
-        self.ram  = ram;
-        self.vram = [[0; V_HEIGHT]; V_WIDTH];
-        self.sp   = 0x0;
-        self.s    = [0; STACK_SIZE];
-        self.i    = 0x000;
-        self.pc   = PC_BASE;
-        self.v    = [0; REG_COUNT];
-        self.k    = None;
+        self.ram    = ram;
+        self.vram   = [[0; V_HEIGHT]; V_WIDTH];
+        self.sp     = 0x0;
+        self.s      = [0; STACK_SIZE];
+        self.i      = 0x000;
+        self.pc     = PC_BASE;
+        self.delay  =  0;
+        self.sound  =  0;
+        self.v      = [0; REG_COUNT];
+        self.k      = None;
         Ok(())
     }
 
@@ -243,9 +253,9 @@ impl Cpu {
 
     // one machine cycle
     pub fn mcycle(&mut self) -> Result<(), Error> {
-        let key = match &mut self.keeb {
+        let key = match &mut self.keyb {
             None       => Ok(None),
-            Some(keeb) => keeb.getkey(),
+            Some(keyb) => keyb.getkey(),
         }?;
         self.keyhandle(key);
         self.icycle()?;
@@ -509,37 +519,44 @@ impl Cpu {
 
     // if v[x] != key then
     fn op_ex9e(&mut self, x: usize) -> PC {
-        panic!("TODO: key");
-        PC::I
+        match self.k {
+            None    => PC::I,
+            Some(k) => PC::cond(self.v[x] != k),
+        }
     }
 
-    // if v[s] == key then
+    // if v[x] == key then
     fn op_exa1(&mut self, x: usize) -> PC {
-        panic!("TODO: key");
-        PC::I
+        match self.k {
+            None    => PC::I,
+            Some(k) => PC::cond(self.v[x] == k),
+        }
     }
 
     // v[x] = delay
     fn op_fx07(&mut self, x: usize) -> PC {
-        panic!("TODO: delay");
+        self.v[x] = self.delay;
         PC::I
     }
 
     // v[x] = key
     fn op_fx0a(&mut self, x: usize) -> PC {
-        panic!("TODO: keypresses");
+        match self.k {
+            None    => { },
+            Some(k) => self.v[x] = k,
+        };
         PC::I
     }
 
     // delay = v[x]
     fn op_fx15(&mut self, x: usize) -> PC {
-        panic!("TODO: delay");
+        self.delay = self.v[x];
         PC::I
     }
 
     // sound timer = v[x]
     fn op_fx18(&mut self, x: usize) -> PC {
-        panic!("TODO: sound timer");
+        self.sound = self.v[x];
         PC::I
     }
 
@@ -553,20 +570,24 @@ impl Cpu {
 
     // i = sprite(v[x])
     fn op_fx29(&mut self, x: usize) -> PC {
-        panic!("TODO: sprites");
+        // location of char x in RAM
+        // font starts at ram[0], and each is 5 bytes
+        self.i = (self.v[x] as usize) * 5;
         PC::I
     }
 
     // bcd(v[x])
     fn op_fx33(&mut self, x: usize) -> PC {
-        panic!("TODO: BCD");
+        self.ram[self.i    ] = self.v[x] / 100;             // hundreds place
+        self.ram[self.i + 1] = (self.v[x] % 100) / 10;      // tens place
+        self.ram[self.i + 2] = self.v[x] % 10;              // ones place
         PC::I
     }
 
     // store v
     fn op_fx55(&mut self, x: usize) -> PC {
         //println!("store v");
-        for ii in 0..REG_COUNT {
+        for ii in 0..x+1 {
             self.ram[self.i + ii] = self.v[ii];
         }
         PC::I
@@ -575,7 +596,7 @@ impl Cpu {
     // load v
     fn op_fx65(&mut self, x: usize) -> PC {
         //println!("load v");
-        for ii in 0..REG_COUNT {
+        for ii in 0..x+1 {
             self.v[ii] = self.ram[self.i + ii];
         }
         PC::I
@@ -583,7 +604,7 @@ impl Cpu {
 }
 
 #[cfg(test)]
-#[path = "cpu_test.rs"]
+#[path = "test/cpu_test.rs"]
 mod cpu_test;
 
 /* vim: set fdm=marker : */
