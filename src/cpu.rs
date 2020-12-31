@@ -3,6 +3,7 @@ extern crate rand;
 use std::io::{Error, ErrorKind};
 use termion::event::Key;
 
+use crate::keypad::Keypad;
 use crate::screen::V_WIDTH;
 use crate::screen::V_HEIGHT;
 use crate::rom::ROM;
@@ -141,10 +142,14 @@ pub struct Cpu {
     v:          [u8; REG_COUNT],            // general registers
     i:          usize,                      // index register
     pc:         usize,                      // program counter
+
+    /* emulator state */
+    keeb:       Option<Keypad>,             // key reader
     prog:       Option<ROM>,                // store program (restore from reset)
+    k:          Option<Key>,                // key pressed on current machine cycle
 }
 impl Cpu {
-    pub fn new(prog: Option<ROM>) -> Result<Self, Error> {
+    pub fn new(prog: Option<ROM>, keeb: Option<Keypad>) -> Result<Self, Error> {
         let ram = Cpu::ram_init(&prog)?;
         Ok(Cpu {
             ram:    ram,
@@ -154,7 +159,9 @@ impl Cpu {
             i:      0x000,
             pc:     PC_BASE,
             v:      [0; REG_COUNT],
+            keeb:   keeb,
             prog:   prog,
+            k:      None,
         })
     }
 
@@ -181,11 +188,30 @@ impl Cpu {
     // update CPU state based on key pressed key (or lack thereof)
     pub fn keyhandle(&mut self, kp: Option<Key>) {
         match kp {
-            None    => { },
+            None    => self.k = None,
             Some(k) => {
                 match k {
-                    Key::Ctrl('r') => { self.reset().unwrap(); },
-                    _ => { },
+                    // control emulator state
+                    Key::Ctrl('r') => self.reset().unwrap(),
+                    // control CPU state
+                    Key::Char('0') |
+                    Key::Char('1') |
+                    Key::Char('2') |
+                    Key::Char('3') |
+                    Key::Char('4') |
+                    Key::Char('5') |
+                    Key::Char('6') |
+                    Key::Char('7') |
+                    Key::Char('8') |
+                    Key::Char('9') |
+                    Key::Char('a') |
+                    Key::Char('b') |
+                    Key::Char('c') |
+                    Key::Char('d') |
+                    Key::Char('e') |
+                    Key::Char('f') => self.k = kp,
+                    // unhandled key, no state change
+                    _              => self.k = None,
                 }
             },
         }
@@ -199,7 +225,15 @@ impl Cpu {
     }
 
     fn reset(&mut self) -> Result<(), Error> {
-        *self = Cpu::new(self.prog.clone())?;
+        let ram = Cpu::ram_init(&self.prog)?;
+        self.ram  = ram;
+        self.vram = [[0; V_HEIGHT]; V_WIDTH];
+        self.sp   = 0x0;
+        self.s    = [0; STACK_SIZE];
+        self.i    = 0x000;
+        self.pc   = PC_BASE;
+        self.v    = [0; REG_COUNT];
+        self.k    = None;
         Ok(())
     }
 
@@ -209,6 +243,11 @@ impl Cpu {
 
     // one machine cycle
     pub fn mcycle(&mut self) -> Result<(), Error> {
+        let key = match &mut self.keeb {
+            None       => Ok(None),
+            Some(keeb) => keeb.getkey(),
+        }?;
+        self.keyhandle(key);
         self.icycle()?;
         Ok(())
     }
