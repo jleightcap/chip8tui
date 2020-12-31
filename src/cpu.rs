@@ -264,6 +264,10 @@ impl Cpu {
         Ok(())
     }
 
+    fn debug_print(&self, s: &str) {
+        if self.verbose { println!("{}", s); }
+    }
+
     // one instruction cycle (variable machine cycle)
     // super handy specification:
     // http://johnearnest.github.io/Octo/docs/chip8ref.pdf
@@ -284,40 +288,40 @@ impl Cpu {
         let n   = nibs.3 as usize;        // opcode argument
 
         let cycle_count: PC = match nibs {
-            (0x0, 0x0, 0xe, 0x0) => self.op_00e0(),         /* clear */
-            (0x0, 0x0, 0xe, 0xe) => self.op_00ee(),         /* return */
-            (0x1, _,   _,   _  ) => self.op_1nnn(nnn),      /* jump nnn */
-            (0x2, _,   _,   _  ) => self.op_2nnn(nnn),      /* call nnn */
-            (0x3, _,   _,   _  ) => self.op_3xnn(x, nn),    /* if vx != nn then */
-            (0x4, _,   _,   _  ) => self.op_4xnn(x, nn),    /* if vx == nn then */
-            (0x5, _,   _,   _  ) => self.op_5xy0(x, y),     /* if vx != vy then */
-            (0x6, _,   _,   _  ) => self.op_6xnn(x, nn),    /* vx := nn */
-            (0x7, _,   _,   _  ) => self.op_7xnn(x, nn),    /* vx += nn */
-            (0x8, _,   _,   0x0) => self.op_8xy0(x, y),     /* vx := vy */
-            (0x8, _,   _,   0x1) => self.op_8xy1(x, y),     /* vx |= vy */
-            (0x8, _,   _,   0x2) => self.op_8xy2(x, y),     /* vx &= vy */
-            (0x8, _,   _,   0x3) => self.op_8xy3(x, y),     /* vx ^= vy */
-            (0x8, _,   _,   0x4) => self.op_8xy4(x, y),     /* vx += vy */
-            (0x8, _,   _,   0x5) => self.op_8xy5(x, y),     /* vx -= vy */
-            (0x8, _,   _,   0x6) => self.op_8xy6(x, y),     /* vx >>= vy */
-            (0x8, _,   _,   0x7) => self.op_8xy7(x, y),     /* vx = -vy */
-            (0x8, _,   _,   0xe) => self.op_8xye(x, y),     /* vx <<= vy */
-            (0x9, _,   _,   0x0) => self.op_9xy0(x, y),     /* if vx == vy then */
-            (0xa, _,   _,   _  ) => self.op_annn(nnn),      /* i := nnn */
-            (0xb, _,   _,   _  ) => self.op_bnnn(nnn),      /* jump nnn + v0 */
-            (0xc, _,   _,   _  ) => self.op_cxnn(x, nn),    /* vx := random(0, 255) & nn */
-            (0xd, _,   _,   _  ) => self.op_dxyn(x, y, n),  /* sprite vx vy n */
-            (0xe, _,   0x9, 0xe) => self.op_ex9e(x),        /* is a key not pressed? */
-            (0xe, _,   0xa, 0x1) => self.op_exa1(x),        /* is a key pressed? */
-            (0xf, _,   0x0, 0x7) => self.op_fx07(x),        /* vx := delay */
-            (0xf, _,   0x0, 0xa) => self.op_fx0a(x),        /* vx := key */
-            (0xf, _,   0x1, 0x5) => self.op_fx15(x),        /* delay := vx */
-            (0xf, _,   0x1, 0x8) => self.op_fx18(x),        /* buzzer := vx */
-            (0xf, _,   0x1, 0xe) => self.op_fx1e(x),        /* buzzer := vx */
-            (0xf, _,   0x2, 0x9) => self.op_fx29(x),        /* i := hex(vx) */
-            (0xf, _,   0x3, 0x3) => self.op_fx33(x),        /* bcd vx */
-            (0xf, _,   0x5, 0x5) => self.op_fx55(x),        /* save vx */
-            (0xf, _,   0x6, 0x5) => self.op_fx65(x),        /* load vx */
+            (0x0, 0x0, 0xe, 0x0) => { self.debug_print("clear");      self.op_00e0()        },
+            (0x0, 0x0, 0xe, 0xe) => { self.debug_print("return");     self.op_00ee()        },
+            (0x1, _,   _,   _  ) => { self.debug_print("jmp nnn");    self.op_1nnn(nnn)     },
+            (0x2, _,   _,   _  ) => { self.debug_print("call nnn");   self.op_2nnn(nnn)     },
+            (0x3, _,   _,   _  ) => { self.debug_print("if vx!=nn");  self.op_3xnn(x, nn)   },
+            (0x4, _,   _,   _  ) => { self.debug_print("if vx==nn");  self.op_4xnn(x, nn)   },
+            (0x5, _,   _,   _  ) => { self.debug_print("if vx!=vy");  self.op_5xy0(x, y)    },
+            (0x6, _,   _,   _  ) => { self.debug_print("vx = nn");    self.op_6xnn(x, nn)   },
+            (0x7, _,   _,   _  ) => { self.debug_print("vx += nn");   self.op_7xnn(x, nn)   },
+            (0x8, _,   _,   0x0) => { self.debug_print("vx = vy");    self.op_8xy0(x, y)    },
+            (0x8, _,   _,   0x1) => { self.debug_print("vx |= vy");   self.op_8xy1(x, y)    },
+            (0x8, _,   _,   0x2) => { self.debug_print("vx &= vy");   self.op_8xy2(x, y)    },
+            (0x8, _,   _,   0x3) => { self.debug_print("vx ^= vy");   self.op_8xy3(x, y)    },
+            (0x8, _,   _,   0x4) => { self.debug_print("vx += vy");   self.op_8xy4(x, y)    },
+            (0x8, _,   _,   0x5) => { self.debug_print("vx -= vy");   self.op_8xy5(x, y)    },
+            (0x8, _,   _,   0x6) => { self.debug_print("vx >>= vy");  self.op_8xy6(x, y)    },
+            (0x8, _,   _,   0x7) => { self.debug_print("vx = -vy");   self.op_8xy7(x, y)    },
+            (0x8, _,   _,   0xe) => { self.debug_print("vx <<= vy");  self.op_8xye(x, y)    },
+            (0x9, _,   _,   0x0) => { self.debug_print("vx == vy");   self.op_9xy0(x, y)    },
+            (0xa, _,   _,   _  ) => { self.debug_print("i = nnn");    self.op_annn(nnn)     },
+            (0xb, _,   _,   _  ) => { self.debug_print("jmp nnn+v0"); self.op_bnnn(nnn)     },
+            (0xc, _,   _,   _  ) => { self.debug_print("vx = rand");  self.op_cxnn(x, nn)   },
+            (0xd, _,   _,   _  ) => { self.debug_print("sp vx vy n"); self.op_dxyn(x, y, n) },
+            (0xe, _,   0x9, 0xe) => { self.debug_print("!key");       self.op_ex9e(x)       },
+            (0xe, _,   0xa, 0x1) => { self.debug_print("key");        self.op_exa1(x)       },
+            (0xf, _,   0x0, 0x7) => { self.debug_print("vx = delay"); self.op_fx07(x)       },
+            (0xf, _,   0x0, 0xa) => { self.debug_print("vx = key");   self.op_fx0a(x)       },
+            (0xf, _,   0x1, 0x5) => { self.debug_print("delay = vx"); self.op_fx15(x)       },
+            (0xf, _,   0x1, 0x8) => { self.debug_print("buzz = vx");  self.op_fx18(x)       },
+            (0xf, _,   0x1, 0xe) => { self.debug_print("i += vx");    self.op_fx1e(x)       },
+            (0xf, _,   0x2, 0x9) => { self.debug_print("i = hx(vx)"); self.op_fx29(x)       },
+            (0xf, _,   0x3, 0x3) => { self.debug_print("bcd vx");     self.op_fx33(x)       },
+            (0xf, _,   0x5, 0x5) => { self.debug_print("save vx");    self.op_fx55(x)       },
+            (0xf, _,   0x6, 0x5) => { self.debug_print("load vx");    self.op_fx65(x)       },
             (_,   _,   _,   _  ) => {
                 return Err(Error::new(
                     ErrorKind::InvalidData, format!("unexpected opcode {:#02x}!", op)
@@ -334,7 +338,6 @@ impl Cpu {
 
     // clear
     fn op_00e0(&mut self) -> PC {
-        //println!("clear");
         for jj in 0..V_HEIGHT {
             for ii in 0..V_WIDTH {
                 self.vram[ii][jj] = 0;
@@ -345,20 +348,17 @@ impl Cpu {
 
     // return
     fn op_00ee(&mut self) -> PC {
-        //println!("return");
         self.pc -= 1;
         PC::J(self.s[self.sp])
     }
 
     // pc = nnn
     fn op_1nnn(&mut self, nnn: usize) -> PC {
-        //println!("jmp {:#05x}", nnn);
         PC::J(nnn)
     }
 
     // call nnn
     fn op_2nnn(&mut self, nnn: usize) -> PC {
-        //println!("call {:#05x}", nnn);
         self.s[self.sp] = self.pc + OP_LEN;
         self.sp += 1;
         PC::J(nnn)
@@ -366,32 +366,27 @@ impl Cpu {
 
     // if v[x] != nn then
     fn op_3xnn(&mut self, x: usize, nn: u8) -> PC {
-        //println!("if v[{}] != {} then", x, nn);
         PC::cond(self.v[x] != nn)
     }
 
     // if v[x] == nn then
     fn op_4xnn(&mut self, x: usize, nn: u8) -> PC {
-        //println!("if v[{}] == {} then", x, nn);
         PC::cond(self.v[x] == nn)
     }
 
     // if v[x] != v[y] then
     fn op_5xy0(&mut self, x: usize, y: usize) -> PC {
-        //println!("if v[{}] != v[{}] then", x, y);
         PC::cond(self.v[x] != self.v[y])
     }
 
     // v[x] = nn
     fn op_6xnn(&mut self, x: usize, nn: u8) -> PC {
-        //println!("v[{}] = {}", x, nn);
         self.v[x] = nn;
         PC::I
     }
 
     // v[x] += nn
     fn op_7xnn(&mut self, x: usize, nn: u8) -> PC {
-        //println!("v[{}] += {}", x, nn);
         let res = self.v[x].wrapping_add(nn);
         self.v[x] = res as u8;
         PC::I
@@ -399,35 +394,30 @@ impl Cpu {
 
     // v[x] = v[y]
     fn op_8xy0(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] = v[{}]", x, y);
         self.v[x] = self.v[y];
         PC::I
     }
 
     // v[x] |= v[y]
     fn op_8xy1(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] |= v[{}]", x, y);
         self.v[x] |= self.v[y];
         PC::I
     }
 
     // v[x] &= v[y]
     fn op_8xy2(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] &= v[{}]", x, y);
         self.v[x] &= self.v[y];
         PC::I
     }
 
     // v[x] ^= v[y]
     fn op_8xy3(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] ^= v[{}]", x, y);
         self.v[x] ^= self.v[y];
         PC::I
     }
 
     // v[x] += v[y]
     fn op_8xy4(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] ++ v[{}]", x, y);
         let res = self.v[x].wrapping_add(self.v[y]);
         // flag set on addition overflow
         self.v[0xf] = if self.v[x] ^ res == 0b1000_0000 { 1 } else { 0 };
@@ -437,7 +427,6 @@ impl Cpu {
 
     // v[x] -= v[y]
     fn op_8xy5(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] -= v[{}]", x, y);
         let res = self.v[x].wrapping_sub(self.v[y]);
         // flag set on subtraction underflow
         self.v[0xf] = if self.v[x] ^ res == 0b1000_0000 { 1 } else { 0 };
@@ -447,7 +436,6 @@ impl Cpu {
 
     // v[x] >>= v[y]
     fn op_8xy6(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] >>= v[{}]", x, y);
         let res = (self.v[x] as u16) >> (self.v[y] as u16);
         self.v[x] = res as u8; // does this underflow?
         // flag set old LSB
@@ -457,7 +445,6 @@ impl Cpu {
 
     // v[x] = (v[y] - v[x])
     fn op_8xy7(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] =- v[{}]", x, y);
         let res = self.v[y].wrapping_sub(self.v[x]);
         // flag set on subtraction underflow
         self.v[0xf] = if self.v[x] ^ res == 0b1000_0000 { 1 } else { 0 };
@@ -467,7 +454,6 @@ impl Cpu {
 
     // v[x] <<= v[y]
     fn op_8xye(&mut self, x: usize, y: usize) -> PC {
-        //println!("v[{}] <<= v[{}]", x, y);
         let res = (self.v[x] as u16) << (self.v[y] as u16);
         // flag set old MSB
         self.v[0xf] = if self.v[x] & 0b1000_0000 == 0b1000_0000 { 1 } else { 0 };
@@ -477,20 +463,17 @@ impl Cpu {
 
     // if v[x] == v[y] then
     fn op_9xy0(&mut self, x: usize, y: usize) -> PC {
-        //println!("if v[{}] == v[{}] then", x, y);
         PC::cond(self.v[x] == self.v[y])
     }
 
     // i = nnn
     fn op_annn(&mut self, nnn: usize) -> PC {
-        //println!("i = {:#05x}", nnn);
         self.i = nnn;
         PC::I
     }
 
     // pc = nnn + v[0]
     fn op_bnnn(&mut self, nnn: usize) -> PC {
-        //println!("pc = {:#05x} + v[0]", nnn);
         PC::J(nnn + self.v[0] as usize)
     }
 
@@ -564,7 +547,6 @@ impl Cpu {
 
     // i += v[x]
     fn op_fx1e(&mut self, x: usize) -> PC {
-        //println!("i += v[{}]", x);
         let res = self.v[x].wrapping_add(self.i as u8);
         self.i = res as usize;
         PC::I
@@ -588,7 +570,6 @@ impl Cpu {
 
     // store v
     fn op_fx55(&mut self, x: usize) -> PC {
-        //println!("store v");
         for ii in 0..x+1 {
             self.ram[self.i + ii] = self.v[ii];
         }
@@ -597,7 +578,6 @@ impl Cpu {
 
     // load v
     fn op_fx65(&mut self, x: usize) -> PC {
-        //println!("load v");
         for ii in 0..x+1 {
             self.v[ii] = self.ram[self.i + ii];
         }
