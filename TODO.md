@@ -1,5 +1,6 @@
 # TODO
 [ ] main loop that doesn't pin a core to 100%
-[ ] keypress, wait instructions
-[ ] finish instruction testing
-[ ] sound
+[ ] bell character is cute but not portable
+[ ] reset control
+[ ] instruction single stepping
+[ ] TUI flair
