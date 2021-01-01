@@ -125,7 +125,13 @@ pub const FONT: [u8; 80] = [
 
 /* }}} */
 
-pub const STACK_SIZE: usize = 16;
+// XXX: in real hardware, the stack is 16 bytes.
+// However, some ROMs seem to use much more
+// (for example, Keypad Test [Hap, 2006])
+// I believe the correct hardware behavior is sp {over,under}flow?
+// but for this edge case, I just bump up the stack size since
+// I figure it can't hurt
+pub const STACK_SIZE: usize = 128;
 pub const RAM_SIZE:   usize = 4096;
 pub const REG_COUNT:  usize = 16;
 pub const PC_BASE:    usize = 0x200;
@@ -203,8 +209,11 @@ impl Cpu {
     }
 
     // TODO: reset in keyhandling
-    fn reset(&mut self) -> Result<(), Error> {
-        let ram = Cpu::ram_init(&self.prog)?;
+    fn reset(&mut self) {
+        // safe unwrap:
+        // in order to reset,the program must have been valid
+        // already on initialization of the CPU
+        let ram = Cpu::ram_init(&self.prog).unwrap();
         self.ram    = ram;
         self.vram   = [[0; V_HEIGHT]; V_WIDTH];
         self.sp     = 0x0;
@@ -217,7 +226,6 @@ impl Cpu {
         self.sound  = 0;
         self.keyb   = [false; 16];
         self.kwait  = false;
-        Ok(())
     }
 
     fn fetch(&self) -> u16 {
@@ -225,8 +233,8 @@ impl Cpu {
     }
 
     // one machine cycle
-    pub fn mcycle(&mut self, keypad: [bool; 16]) -> Result<(), Error> {
-        self.keyb = keypad; // read the state of the keypad
+    pub fn mcycle(&mut self, keypad: &[bool; 16]) -> Result<(), Error> {
+        self.keyb = *keypad; // read the state of the keypad
 
         // halted state, wait for keypress
         if self.kwait {
@@ -239,7 +247,7 @@ impl Cpu {
         } else {
             // decrement timers
             if self.delay > 0 {
-                print!("\0x07"); // BEEP
+                print!("\x07"); // BEEP
                 self.delay -= 1;
             }
             if self.sound > 0 {

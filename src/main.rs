@@ -43,7 +43,7 @@ fn main() -> Result<(), io::Error> {
 
     loop {
         let key = k.poll_reader()?;
-        c.mcycle(key)?;
+        c.mcycle(&key)?;
         match &mut screen {
             Some(s) => s.render(&c.vram),
             None    => (),
