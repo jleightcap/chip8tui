@@ -24,6 +24,8 @@ jobs:
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1.0.2
+        with:
+          key: d258403a-3c2a-4566-aadb-204e7cf3ce8d
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
