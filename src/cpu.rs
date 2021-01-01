@@ -1,10 +1,8 @@
 extern crate rand;
 
 use std::io::{Error, ErrorKind};
-use termion::event::Key;
 
 use crate::{
-    keypad::Keypad,
     screen::V_WIDTH,
     screen::V_HEIGHT,
     rom::ROM,
@@ -152,13 +150,12 @@ pub struct Cpu {
 
     /* emulator state */
     verbose:    bool,                       // print debug information
-    keyb:       Option<Keypad>,             // key reader
-    prog:       Option<ROM>,                // store program (restore from reset)
-    k:          Option<u8>,                 // key pressed on current machine cycle
+    keyb:       [bool; 16],                 // key reader
     kwait:      bool,                       // waiting for key press
+    prog:       Option<ROM>,                // store program (restore from reset)
 }
 impl Cpu {
-    pub fn new(prog: Option<ROM>, keyb: Option<Keypad>, v: bool) -> Result<Self, Error> {
+    pub fn new(prog: Option<ROM>, v: bool) -> Result<Self, Error> {
         let ram = Cpu::ram_init(&prog)?;
         Ok(Cpu {
             ram:        ram,
@@ -172,10 +169,9 @@ impl Cpu {
             delay:      0,
             sound:      0,
             verbose:    v,
-            keyb:       keyb,
-            prog:       prog,
-            k:          None,
+            keyb:       [false; 16],
             kwait:      false,
+            prog:       prog,
         })
     }
 
@@ -199,33 +195,6 @@ impl Cpu {
         Ok(ram)
     }
 
-    // update CPU state based on key pressed key (or lack thereof)
-    pub fn keyhandle(&mut self, kp: Key) {
-        match kp {
-            // control emulator state
-            Key::Ctrl('r') => self.reset().unwrap(),
-            // control CPU state
-            Key::Char('0') => self.k = Some(0x0),
-            Key::Char('1') => self.k = Some(0x1),
-            Key::Char('2') => self.k = Some(0x2),
-            Key::Char('3') => self.k = Some(0x3),
-            Key::Char('4') => self.k = Some(0x4),
-            Key::Char('5') => self.k = Some(0x5),
-            Key::Char('6') => self.k = Some(0x6),
-            Key::Char('7') => self.k = Some(0x7),
-            Key::Char('8') => self.k = Some(0x8),
-            Key::Char('9') => self.k = Some(0x9),
-            Key::Char('a') => self.k = Some(0xa),
-            Key::Char('b') => self.k = Some(0xb),
-            Key::Char('c') => self.k = Some(0xc),
-            Key::Char('d') => self.k = Some(0xd),
-            Key::Char('e') => self.k = Some(0xe),
-            Key::Char('f') => self.k = Some(0xf),
-            // unhandled key, no state change
-            _              => self.k = None,
-        }
-    }
-
     // insert an opcode at the current PC
     #[allow(dead_code)]
     fn opcode_init(&mut self, op: u16) {
@@ -233,19 +202,20 @@ impl Cpu {
         self.ram[self.pc + 1] = ((op & 0x00ff) >> 0) as u8;
     }
 
+    // TODO: reset in keyhandling
     fn reset(&mut self) -> Result<(), Error> {
         let ram = Cpu::ram_init(&self.prog)?;
         self.ram    = ram;
         self.vram   = [[0; V_HEIGHT]; V_WIDTH];
         self.sp     = 0x0;
-        self.kreg   = 0;
         self.s      = [0; STACK_SIZE];
+        self.v      = [0; REG_COUNT];
         self.i      = 0x000;
         self.pc     = PC_BASE;
-        self.delay  =  0;
-        self.sound  =  0;
-        self.v      = [0; REG_COUNT];
-        self.k      = None;
+        self.kreg   = 0;
+        self.delay  = 0;
+        self.sound  = 0;
+        self.keyb   = [false; 16];
         self.kwait  = false;
         Ok(())
     }
@@ -255,24 +225,21 @@ impl Cpu {
     }
 
     // one machine cycle
-    pub fn mcycle(&mut self) -> Result<(), Error> {
-        let key = match &mut self.keyb {
-            None       => Ok(None),
-            Some(keyb) => keyb.getkey(),
-        }?;
-        
-        // halt state, wait for keypress
-        if self.kwait { 
-            match key {
-                None    => (),
-                Some(k) => {
+    pub fn mcycle(&mut self, keypad: [bool; 16]) -> Result<(), Error> {
+        self.keyb = keypad; // read the state of the keypad
+
+        // halted state, wait for keypress
+        if self.kwait {
+            for ii in 0..self.keyb.len() {
+                if keypad[ii] {
                     self.kwait = false;
-                    self.keyhandle(k);
+                    self.v[self.kreg] = ii as u8;
                 }
             }
         } else {
             // decrement timers
             if self.delay > 0 {
+                print!("\0x07"); // BEEP
                 self.delay -= 1;
             }
             if self.sound > 0 {
@@ -524,20 +491,14 @@ impl Cpu {
         PC::I
     }
 
-    // if v[x] != key then
+    // if v[x] == key then
     fn op_ex9e(&mut self, x: usize) -> PC {
-        match self.k {
-            None    => PC::I,
-            Some(k) => PC::cond(self.v[x] != k),
-        }
+        PC::cond(self.keyb[self.v[x] as usize])
     }
 
-    // if v[x] == key then
+    // if v[x] != key then
     fn op_exa1(&mut self, x: usize) -> PC {
-        match self.k {
-            None    => PC::I,
-            Some(k) => PC::cond(self.v[x] == k),
-        }
+        PC::cond(!self.keyb[self.v[x] as usize])
     }
 
     // v[x] = delay

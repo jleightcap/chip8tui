@@ -31,18 +31,19 @@ fn main() -> Result<(), io::Error> {
             .get_matches();
     let fname = matches.value_of("INPUT").unwrap();
     let verbo = matches.is_present("verbose");
-    let nogra = matches.is_present("nographic");
+    let blank = matches.is_present("nographic");
 
     // components
-    let mut screen = Screen::new(!nogra)?;
-    let k = Keypad::new(async_stdin());
+    let mut screen = Screen::new(!blank)?;
+    let mut k = Keypad::new(async_stdin());
     let r = ROM::new_file(&fname);
 
-    let mut c: Cpu = Cpu::new(Some(r), Some(k), verbo)?;
+    let mut c: Cpu = Cpu::new(Some(r), verbo)?;
 
 
     loop {
-        c.mcycle()?;
+        let key = k.poll_reader()?;
+        c.mcycle(key)?;
         match &mut screen {
             Some(s) => s.render(&c.vram),
             None    => (),

@@ -15,25 +15,51 @@ impl Keypad {
         Keypad { astdin: stdin }
     }
 
-    // TODO: spin out into testable keyhandler
-    pub fn getkey(&mut self) -> Result<Option<Key>, Error> {
-        let event = self.astdin.by_ref().keys().nth(0);
-        match event {
-            // no key pressed
-            None => Ok(None),
-            // handle keys that affect global state (exit program, for example)
-            // otherwise return key to be handled in updating CPU state
-            Some(keypress) => 
-                match keypress {
-                    Ok(key) => match key {
-                        // special key handlers
-                        Key::Ctrl('c') =>
-                            Err(Error::new(ErrorKind::Interrupted, "exit CHIP8")),
-                        _ => Ok(Some(key)),
-                    },
-                    Err(_) => Err(Error::new(ErrorKind::NotFound, "bad keypress!")),
-                },
+    fn getkey(&mut self) -> Option<Result<Key, Error>> {
+        self.astdin.by_ref().keys().nth(0)
+    }
+
+    pub fn poll_reader(&mut self) -> Result<[bool; 16], Error> {
+        let k = self.getkey();
+        match k {
+            None        => Ok([false; 16]),
+            Some(event) => match event {
+                Err(_)  => Err(Error::new(ErrorKind::InvalidData, "bad key!")),
+                Ok(key) => poll(Some(key)),
+            },
         }
     }
 }
 
+// poll the keypad state
+pub fn poll(event: Option<Key>) -> Result<[bool; 16], Error> {
+    let mut keystate = [false; 16];
+    match event {
+        None    => Ok(keystate), // no keys pressed
+        Some(k) => match k {
+                Key::Ctrl('c') =>
+                    Err(Error::new(ErrorKind::Interrupted, "exit CHIP8")),
+                Key::Char('1') => { keystate[0x0] = true; Ok(keystate) },
+                Key::Char('2') => { keystate[0x1] = true; Ok(keystate) },
+                Key::Char('3') => { keystate[0x2] = true; Ok(keystate) },
+                Key::Char('4') => { keystate[0x3] = true; Ok(keystate) },
+                Key::Char('q') => { keystate[0x4] = true; Ok(keystate) },
+                Key::Char('w') => { keystate[0x5] = true; Ok(keystate) },
+                Key::Char('e') => { keystate[0x6] = true; Ok(keystate) },
+                Key::Char('r') => { keystate[0x7] = true; Ok(keystate) },
+                Key::Char('a') => { keystate[0x8] = true; Ok(keystate) },
+                Key::Char('s') => { keystate[0x9] = true; Ok(keystate) },
+                Key::Char('d') => { keystate[0xa] = true; Ok(keystate) },
+                Key::Char('f') => { keystate[0xb] = true; Ok(keystate) },
+                Key::Char('z') => { keystate[0xc] = true; Ok(keystate) },
+                Key::Char('x') => { keystate[0xd] = true; Ok(keystate) },
+                Key::Char('c') => { keystate[0xe] = true; Ok(keystate) },
+                Key::Char('v') => { keystate[0xf] = true; Ok(keystate) },
+                _ => Ok(keystate),
+            },
+    }
+}
+
+#[cfg(test)]
+#[path = "test/keypad_test.rs"]
+mod keypad_test;
